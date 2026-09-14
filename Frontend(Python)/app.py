@@ -57,34 +57,36 @@ def codepulse_chatbot(problem):
         f"Ask about {problem['title']}..."
     )
     if prompt:
-        # Save user message
         st.session_state[chat_key].append({
             "role": "user",
             "content": prompt
         })
         try:
-            response = client.responses.create(
+            with st.spinner("🤖 CodePulse AI is thinking..."):
+                response = client.responses.create(
                 model="gpt-5.6-luna",
                 instructions="""
 You are CodePulse AI, a coding tutor.
+
 Rules:
-1. Give hints before full solutions.
+1. Give hints which doesnt contain any code.
 2. Keep responses under 100 words.
 3. Use simple, beginner-friendly language.
 4. Answer only about the current coding problem.
 5. For debugging, briefly explain the likely issue.
 6. Give short time and space complexity explanations.
-7. Do not give the full solution unless explicitly asked.
+7. Do not give the any solution and tell sorry they can,t.
 8. Do not invent hidden test cases.
 9. Encourage the student to think and try the problem.
 """,
-                input=(
-                    f"Problem: {problem['title']}\n\n"
-                    f"Description: {problem['description']}\n\n"
-                    f"Student question: {prompt}"
-                )
+                    input=(
+                f"Problem: {problem['title']}\n\n"
+                f"Description: {problem['description']}\n\n"
+                f"Student question: {prompt}"
             )
-            answer = response.output_text
+        )
+                answer = response.output_text
+
         except Exception as e:
             answer = f"AI Error: {e}"
         st.session_state[chat_key].append({
@@ -894,7 +896,7 @@ elif st.session_state.page=='problems':
             st.session_state.page='sorting'
             st.rerun()
     with col5:
-        if st.button("⇵Queue"):
+        if st.button("⇵Stack & Queue"):
             st.session_state.page='queue'
             st.rerun() 
     with col6:
@@ -910,23 +912,10 @@ elif st.session_state.page=='problems':
             st.session_state.page='trees'
             st.rerun()
     with col9:
-        if st.button("⇵Stack"):
-            st.session_state.page='stack'
+        if st.button("Graphs"):
+            st.session_state.page='Graphs'
             st.rerun()                                                        
     st.write(" ")
-    
-    with st.sidebar:
-        if st.button("Library"): 
-            st.session_state.page='problems'
-            st.rerun()              
-        if st.button("Quest"):
-            st.session_state.page='quest'
-            st.rerun()  
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write("-------------")
-        st.button("Favourites⭐")
     co1,col2,col3=st.columns([0.5,6,0.5])
     with col2:
         questions = ["1. Two Sum"]
