@@ -1,17 +1,26 @@
+
 #include <iostream>
-#include <vector>
 using namespace std;
 
-vector<int> twoSet(vector<int>& nums, int target) {
-    return {0, 1};
+long long power(int x, int n) {
+    if (n == 0)
+        return 1;
+
+    if (n == 1)
+        return x;
+
+    long long half = power(x, n / 2);
+
+    if (n % 2 == 0)
+        return half * half;
+    else
+        return x * half * half;
 }
 
 int main() {
-    vector<int> nums = {2, 7, 11, 15};
-    int target = 9;
+    int x, n;
+    cin >> x >> n;
 
-    vector<int> ans = twoSet(nums, target);
-
-    cout << "[" << ans[0] << "," << ans[1] << "]";
+    cout << power(x, n);
     return 0;
 }
