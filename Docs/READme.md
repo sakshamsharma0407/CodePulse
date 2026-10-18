@@ -82,7 +82,7 @@ pip install streamlit mysql-connector-python bcrypt streamlit-ace openai
 
 1. Start your MySQL server.
 2. Create or configure the database required by the project.
-3. Import the SQL file from `Database(MySQL)/database.sql` if it contains the required schema.
+3. Import the SQL file from Database(MySQL)/database.sql if it contains the required schema.
 4. Configure database credentials securely in your application.
 
 ### 4. Compile the C++ Backend
@@ -91,7 +91,9 @@ Using GCC/G++ on Windows:
 
 powershell
 g++ "Backend(C++)/login.cpp" -o "Backend(C++)/login.exe"
+
 g++ "Backend(C++)/submission.cpp" -o "Backend(C++)/submission.exe"
+
 g++ "Backend(C++)/judge.cpp" -o "Backend(C++)/judge.exe"
 
 
