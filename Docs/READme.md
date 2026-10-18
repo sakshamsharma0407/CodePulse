@@ -27,18 +27,31 @@
 
 CodePulse/
 ├── Backend(C++)/
+
 │   ├── judge.cpp
+
 │   ├── login.cpp
+
 │   ├── submission.cpp
+
 │   └── .vscode/
+
 ├── Database(MySQL)/
+
 │   ├── database.sql
+
 │   └── database.mwb
+
 ├── Docs/
+
 ├── Frontend(Python)/
+
 │   ├── app.py
+
 │   └── .vscode/
+
 ├── .gitignore
+
 └── README.md
 
 
