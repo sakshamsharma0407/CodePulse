@@ -1,0 +1,20 @@
+* [33m8909de7[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m Update C++ backend
+* [33m42e6ed0[m Added Test Cases
+* [33md9d2ee8[m Added problem description and improved interface
+* [33m58736fa[m Add C++ backend
+[31m|[m * [33mae1d3f7[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;32mbackup-before-rebase-repair[m[33m)[m Update C++ backend
+[31m|[m * [33m0033ff3[m Added Test Cases
+[31m|[m * [33mdfd29e9[m Describe your changes
+[31m|[m * [33m0db8851[m Add C++ backend
+[31m|[m[31m/[m  
+[31m|[m *   [33m049449c[m[33m ([m[1;35mrefs/stash[m[33m)[m On main: Temporary backup of tracked changes
+[31m|[m [33m|[m[34m\[m  
+[31m|[m [33m|[m * [33mac1b80c[m index on main: f3f8cdd Update C++ backend
+[31m|[m [33m|[m[33m/[m  
+[31m|[m * [33mf3f8cdd[m Update C++ backend
+[31m|[m [34m|[m * [33mbab9403[m[33m ([m[1;32mbackup-before-author-change[m[33m)[m Update C++ backend
+[31m|[m [34m|[m[34m/[m  
+[31m|[m [34m|[m * [33m45c2881[m[33m ([m[1;32mbackup-remote-before-repair[m[33m)[m Update C++ backend
+[31m|[m [34m|[m[34m/[m  
+[31m|[m * [33mafa64a4[m Added Test Cases
+[31m|[m * [33m3ef670b[m Describe your changes

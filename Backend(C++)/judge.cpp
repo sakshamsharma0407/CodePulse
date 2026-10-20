@@ -4,6 +4,7 @@
 #include <cstdlib>
 #include <sstream>
 #include <vector>
+#include <windows.h>
 using namespace std;
 
 string normalize(const string& text) {
@@ -18,10 +19,40 @@ string normalize(const string& text) {
 
     return result;
 }
+bool runWithTimeout(DWORD timeoutMs) {
+    STARTUPINFOA si = {};
+    PROCESS_INFORMATION pi = {};
+    si.cb = sizeof(si);
 
+    string command =
+        "cmd.exe /C \"submission.exe < test_input.txt > test_output.txt\"";
+
+    if (!CreateProcessA(
+        NULL, &command[0], NULL, NULL, FALSE,
+        CREATE_NO_WINDOW, NULL, NULL, &si, &pi
+    )) {
+        return false;
+    }
+
+    DWORD status = WaitForSingleObject(pi.hProcess, timeoutMs);
+    bool success = false;
+
+    if (status == WAIT_OBJECT_0) {
+        DWORD exitCode = 1;
+        if (GetExitCodeProcess(pi.hProcess, &exitCode))
+            success = (exitCode == 0);
+    } else {
+        TerminateProcess(pi.hProcess, 1);
+        WaitForSingleObject(pi.hProcess, 1000);
+    }
+
+    CloseHandle(pi.hThread);
+    CloseHandle(pi.hProcess);
+
+    return success;
+}
 int main(int argc, char* argv[]) {
     string code, line;
-
     while (getline(cin, line))
         code += line + "\n";
 
@@ -33,17 +64,24 @@ int main(int argc, char* argv[]) {
     ofstream source("submission.cpp");
     source << code;
     source.close();
+int result = system(
+    "submission.exe < test_input.txt > test_output.txt 2> runtime_error.txt"
+);
 
-if (system("g++ submission.cpp -o submission.exe 2> compile_error.txt") != 0) {
-    ifstream errorFile("compile_error.txt");
-    string error(
-        (istreambuf_iterator<char>(errorFile)),
-        istreambuf_iterator<char>()
-    );
 
-    cout << "Compilation Error:\n" << error;
-    return 1;
-}
+ifstream outputFile("test_output.txt");
+string actual(
+    (istreambuf_iterator<char>(outputFile)),
+    istreambuf_iterator<char>()
+);
+ifstream errorFile("runtime_error.txt");
+string runtimeError(
+    (istreambuf_iterator<char>(errorFile)),
+    istreambuf_iterator<char>()
+);
+
+if (!runtimeError.empty())
+    cout << "Runtime error: " << runtimeError << '\n';
 
     if (argc < 2) {
         cout << "Missing question number";
@@ -458,9 +496,7 @@ for (int i = 0; i < (int)tests.size(); i++) {
     input << tests[i].first;
     input.close();
 
-    int result = system(
-        "submission.exe < test_input.txt > test_output.txt"
-    );
+bool success = runWithTimeout(5000);
 
     string actual;
     ifstream output("test_output.txt");
@@ -475,8 +511,8 @@ for (int i = 0; i < (int)tests.size(); i++) {
 
     string expected = tests[i].second;
 
-    if (result == 0 &&
-        normalize(actual) == normalize(expected)) {
+    if (success &&
+    normalize(actual) == normalize(expected)) {
         passed++;
     } else {
         failed = true;

@@ -1,53 +1,24 @@
 import streamlit as st
-import mysql.connector
-import re
 import bcrypt
 import random
 import smtplib
 from email.message import EmailMessage
 import subprocess
-import tempfile
 import os
 import subprocess
-import sys
 from streamlit_ace import st_ace
 from openai import OpenAI
-
-client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
-username = "saksham"
-password = "1234"
+import smtplib
+import ssl
+from pathlib import Path
 import os
-import subprocess
-
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
-backend_path = os.path.join(BASE_DIR, "Backend(C++)")
-login_path = os.path.join(backend_path, "login.exe")
-
-print("PATH:", login_path)
-print("EXISTS:", os.path.exists(login_path))
-
-if not os.path.exists(login_path):
-    st.error("login.exe not found!")
-else:
-    result = subprocess.run(
-        [login_path, username, password],
-        capture_output=True,
-        text=True,
-        cwd=backend_path
-    )
-
-    print("C++ OUTPUT:", result.stdout)
-    print("C++ ERROR:", result.stderr)
-@st.cache_resource
-@st.cache_data
-def get_connection():
-    return mysql.connector.connect(
-        host=st.secrets["mysql"]["host"],
-        user=st.secrets["mysql"]["user"],
-        password=st.secrets["mysql"]["password"],
-        database=st.secrets["mysql"]["database"]
-    )
+BASE_DIR = Path(__file__).resolve().parent.parent
+BACKEND_PATH = BASE_DIR / "Backend(C++)"
+LOGIN_PATH = BACKEND_PATH / "login.exe"
+SIGNUP_PATH = BACKEND_PATH / "signup.exe"
+RECOVERY_PATH = BACKEND_PATH / "recovery.exe"
+CHECK_EMAIL_PATH = os.path.join(BACKEND_PATH, "recovery.exe")
+client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 def codepulse_chatbot(problem):
     st.subheader("🤖 CodePulse AI")
     chat_key = f"chat_messages_{problem['title']}"
@@ -182,7 +153,6 @@ st.markdown("""
     }
 </style>
 """, unsafe_allow_html=True)
-
 st.markdown("""
 <style>
 
@@ -1937,28 +1907,19 @@ def search_questions(query, questions):
     return results
 if "problem_tab" not in st.session_state:
     st.session_state.problem_tab = "description"
-
 if "submission_output" not in st.session_state:
     st.session_state.submission_output = ""
-
 if "page" not in st.session_state:
     st.session_state.page = "home"
-
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
-
 if "user_id" not in st.session_state:
     st.session_state.user_id = None
-
 if "username" not in st.session_state:
     st.session_state.username = None
-
 if "solved_questions" not in st.session_state:
     st.session_state.solved_questions = set()
-
 active_page = st.session_state.page
-
-
 st.markdown(f"""
 <style>
 /* ACTIVE NAVBAR BUTTON */
@@ -1990,11 +1951,6 @@ with st.container(key="navbar"):
         if(st.button("◴History",key='history')):
             st.session_state.page="history"
             st.rerun()
-    with c4:
-        st.write("")
-        if(st.button("💼Interview",key='interview')):
-            st.session_state.page="interview"
-            st.rerun()
     with c5:
         st.write("")
         if(st.button("📈Progress",key='progress')):
@@ -2010,34 +1966,45 @@ with st.container(key="navbar"):
         if(st.button("🔍︎Debug",key='debug')):
             st.session_state.page="debug"
             st.rerun()
-if st.session_state.page=='home':
-    col1,col2,col3=st.columns([1,12,1])
+if st.session_state.page == "home":
+    col1, col2, col3, col4 = st.columns([1, 8, 4, 1])
     with col2:
-        st.title("CodePulse: A Coding Practice and Evaluation Platform")
+        st.markdown("# CODEPULSE | YOUR CODING SPACE")
+        if st.session_state.get("logged_in", False):
+            st.write("")
+            st.write("")
+            username = st.session_state.get("username", "User")
+            st.header(f"Welcome back, {username}!")
+            st.write("")
+            st.subheader("Think smart. Code better. Keep growing.")
+            st.write("")
+            st.write("Your next coding challenge awaits!")
+            c1,c2=st.columns([1,1])
+            with c1:
+                st.success("✅ Login Successful! Welcome to CodePulse.")
+        else:
+            st.write("")
+            st.write("")
+            st.header("Welcome to CodePulse! ")
+            st.write("")
+            st.subheader("Start your coding journey today.")
+            st.write("")
+            st.write("Practice, improve, and become a better programmer.")
+            c1,c2=st.columns([1,2])
+            with c1:
+                st.info("🔐 Log in to track your progress.")
+                if st.button("Login to Get Started", key="home_login"):
+                    st.session_state.page = "login"
+                    st.rerun()
+
+    with col3:
         st.write("")
-        st.header("""Practice DSA. Write Code.Build Better Problem-Solving Skills.""")
-        st.write("CodePulse is an interactive DSA practice platform designed to help you solve coding problems, test your solutions, track your performance, and improve your weak areas.")
-        col1,col2=st.columns([1,1])
-        with col1:
-            with st.container(key="description_box"):
-                st.subheader("""Why CodePulse?""")
-                st.write("""
-•Practice — Solve problems across different DSA topics.
-
-•Code & Judge — Write your solution and test it instantly.
-
-•Learn from History — Review your previous attempts.
-
-•Improve Weak Areas — Identify topics that need more practice.""")
-                st.subheader("""Made By:""")
-                st.write("""
-Saksham Sharma
-
-Lokesh Farswan
-
-Prateek Pratap Singh
-
-Shorya Pratap""")
+        st.write("")
+        st.write("")
+        st.write("")
+        st.write("")
+        st.write("")
+        st.image("img.jpg", width=400)
 elif st.session_state.page=='problems':
     st.write(" ")
     st.write(" ")
@@ -3277,15 +3244,9 @@ elif st.session_state.page=='problems':
             width: 100%;
             margin: 0;
         "></div>
-    """, unsafe_allow_html=True)        
-                                                                                                                                                                                                                                                                                                      
+    """, unsafe_allow_html=True)                                                                                                                                                                                                                                                                                                             
 elif st.session_state.page=='history':
     st.title("History Page")
-    if st.button("Back"):
-        st.session_state.page='home'
-        st.rerun()
-elif st.session_state.page=='interview':
-    st.title("Interview Page")
     if st.button("Back"):
         st.session_state.page='home'
         st.rerun()
@@ -3294,10 +3255,8 @@ elif st.session_state.page=='progress':
     if st.button("Back"):
         st.session_state.page='home'
         st.rerun()
-elif st.session_state.page=='login':
-    st.write(" ")
-    st.write(" ")
-    col1,col2,col3,col4=st.columns([3,2,2.5,0.5])
+elif st.session_state.page == "login":
+    col1, col2, col3, col4 = st.columns([3, 2, 2.5, 0.5])
     with col1:
         st.write(" ")
         st.write(" ")
@@ -3306,7 +3265,6 @@ elif st.session_state.page=='login':
         st.write(" ")
         st.write(" ")
         st.write(" ")
-        st.write(" ") 
         st.write(" ")
         st.write(" ")
         st.write(" ")
@@ -3316,59 +3274,99 @@ elif st.session_state.page=='login':
         st.write(" ")
         st.write(" ")
         st.write(" ")
-        st.write(" ") 
         st.write(" ")
         st.write(" ")
         st.write(" ")
         st.write(" ")
-        st.write(" ") 
         st.write(" ")
-        st.write(" ") 
         st.write(" ")
-        st.write(" ")                         
-        if st.button("Back"):
-                st.session_state.page='home'
-                st.rerun()                               
+        st.write(" ")
+        st.write(" ")
+        st.write(" ")
+        st.write(" ")
+        st.write(" ")
+        st.write(" ")
+        st.write(" ")
+        if st.button("Back", key="login_back"):
+            st.session_state.page = "home"
+            st.rerun()
+
     with col2:
         with st.container(key="login_box"):
             st.header("ㅤㅤLOGIN")
-            st.write(" ")
-            st.write(" ")
-            username=st.text_input("Username")
-            st.write(" ")
-            password=st.text_input("Password")
-            st.write(" ")
-            if st.button("Submit"):
-                if username==None or password==None:
-                    st.error("Please enter all details")
+
+            username = st.text_input(
+                "Username",
+                key="login_username"
+            )
+
+            password = st.text_input(
+                "Password",
+                type="password",
+                key="login_password"
+            )
+
+            st.write("")
+
+            if st.button("Login", key="login_submit"):
+                if not username.strip() or not password:
+                    st.error("Please enter your username and password.")
+
                 else:
-                    connection=get_connection()
-                    cursor=connection.cursor()
-                    cursor.execute(
-                    "SELECT id, password_hash FROM USERS WHERE username = %s",
-                    (username,))
-                    user = cursor.fetchone()
-                    if user:
-                        user_id = user[0]
-                        stored_hash = user[1]
-                        if bcrypt.checkpw(
-                            password.encode("utf-8"),
-                            stored_hash.encode("utf-8")):
-                            st.success("Login successful!")
-                            st.session_state.logged_in = True
-                            st.session_state.user_id = user_id
-                            st.session_state.username = username
-                            st.session_state.page = "home"                   
-                            st.rerun()
+                    try:
+                        env = os.environ.copy()
+                        env["PATH"] = (
+                            r"C:\Program Files\MySQL\MySQL Server 8.0\lib;"
+                            r"C:\msys64\ucrt64\bin;"
+                            + env.get("PATH", "")
+                        )
+
+                        result = subprocess.run(
+                            [LOGIN_PATH],
+                            input=f"{username.strip()}\n{password}\n",
+                            capture_output=True,
+                            text=True,
+                            timeout=10,
+                            cwd=BACKEND_PATH,
+                            env=env
+                        )
+
+                        output = result.stdout.strip()
+                        error_output = result.stderr.strip()
+                        if result.returncode == 0 and output.startswith("HASH:"):
+                            password_hash = output[len("HASH:"):].strip()
+
+                            if bcrypt.checkpw(
+        password.encode("utf-8"),
+        password_hash.encode("utf-8")
+    ):
+                                st.session_state.logged_in = True
+                                st.session_state.username = username.strip()
+                                st.session_state.current_user = username.strip()
+                                st.session_state.page = "home"
+                                st.rerun()
+                            else:
+                                st.error("Invalid username or password.")
+
+                        elif output == "LOGIN_FAILED":
+                            st.error("Invalid username or password.")
+
                         else:
-                            st.error("Sorry, incorrect password.")
-                    else:
-                        st.error("Sorry, username not found.")
-            if st.button("Forgot Username"):
-                st.session_state.page="forgotuser"
-                st.rerun()
-            if st.button("Forgot Password"):
-                st.session_state.page="forgotpass"
+                            st.error("Unexpected response from login.cpp.")
+
+                    except subprocess.TimeoutExpired:
+                        st.error("Login timed out. Please try again.")
+
+                    except Exception as e:
+                        st.error(f"Login error: {e}")
+
+            st.write("")
+
+            if st.button(
+                "Forgot Username / Forgot Password",
+                key="forgot_login"
+            ):
+                st.session_state.page = "forgotuser"
                 st.rerun()
     with col4:
         st.write(" ")
@@ -3378,7 +3376,6 @@ elif st.session_state.page=='login':
         st.write(" ")
         st.write(" ")
         st.write(" ")
-        st.write(" ") 
         st.write(" ")
         st.write(" ")
         st.write(" ")
@@ -3388,23 +3385,25 @@ elif st.session_state.page=='login':
         st.write(" ")
         st.write(" ")
         st.write(" ")
-        st.write(" ") 
         st.write(" ")
         st.write(" ")
         st.write(" ")
         st.write(" ")
-        st.write(" ") 
-        st.write(" ")
-        st.write(" ") 
         st.write(" ")
         st.write(" ")
-        if st.button("Signup"):
-            st.session_state.page='signup'
+        st.write(" ")
+        st.write(" ")
+        st.write(" ")
+        st.write(" ")
+        st.write(" ")
+        st.write(" ")
+        st.write(" ")
+        if st.button("Signup", key="login_signup"):
+            st.session_state.page = "signup"
             st.rerun()
-elif st.session_state.page=='signup':
-    st.write(" ")
-    st.write(" ")
-    col1,col2,col3,col4=st.columns([3,2,2.5,0.5])
+elif st.session_state.page == "signup":
+    col1, col2, col3, col4 = st.columns([3, 2, 2.5, 0.5])
+
     with col1:
         st.write(" ")
         st.write(" ")
@@ -3413,7 +3412,6 @@ elif st.session_state.page=='signup':
         st.write(" ")
         st.write(" ")
         st.write(" ")
-        st.write(" ") 
         st.write(" ")
         st.write(" ")
         st.write(" ")
@@ -3423,58 +3421,113 @@ elif st.session_state.page=='signup':
         st.write(" ")
         st.write(" ")
         st.write(" ")
-        st.write(" ") 
         st.write(" ")
         st.write(" ")
         st.write(" ")
         st.write(" ")
-        st.write(" ") 
-        st.write(" ")
-        st.write(" ") 
         st.write(" ")
         st.write(" ")
+        st.write(" ")
+        st.write(" ")
+        st.write(" ")
+        st.write(" ")
+        st.write(" ")
+        st.write(" ")
+        st.write(" ")
+
         if st.button("Back"):
-            st.session_state.page='login'
+            st.session_state.page = "login"
             st.rerun()
+
     with col2:
         with st.container(key="login_box"):
             st.header("ㅤㅤSIGNUP")
-            st.write(" ")
-            email=st.text_input("Email")
-            password=st.text_input("Password")
-            confirm_password=st.text_input("Confirm Password")
-            st.write(" ")
-            if st.button("Submit"):
-                if password==None or confirm_password==None or email==None:
-                    st.error("Please enter all details")
-                elif not re.fullmatch(r"[A-Za-z0-9._%+-]+@gmail\.com",email):
-                    st.error("Please enter a valid Gmail address.")
-                elif(confirm_password!=password):
-                    st.error("Confirm Password and Password didnt match")
-                elif(len(password)<8):
-                    st.error("lenght of password should be greater than 8")
-                elif not re.search(r"[A-Z]",password):
-                    st.error("password should contain atleast one uppercase letter")
-                elif not re.search(r"[^A-Za-z0-9\s]", password):
-                    st.error("Password must contain at least one special character.")
+
+            email = st.text_input("Email", key="signup_email")
+            username = st.text_input("Username", key="signup_username")
+            password = st.text_input(
+                "Password", type="password", key="signup_password"
+            )
+            confirm_password = st.text_input(
+                "Confirm Password",
+                type="password",
+                key="signup_confirm_password"
+            )
+
+            if st.button("Submit", key="signup_submit"):
+                if not all([
+                    email.strip(), username.strip(),
+                    password, confirm_password
+                ]):
+                    st.error("Please enter all details.")
+
                 else:
-                    connection=get_connection()
-                    cursor=connection.cursor()
-                    cursor.execute("""SELECT id from users where email=%s""",(email,))
-                    existing_email=cursor.fetchone()
-                    if existing_email:
-                        st.error("Account has already made in this email")
-                    else:
-                        st.session_state.email = email
-                        st.session_state.password = password   
-                        st.session_state.page="otp"
-                        st.rerun()
-elif st.session_state.page=='otp':
+                    try:
+                        env = os.environ.copy()
+                        env["DB_PASSWORD"] = st.secrets["DB_PASSWORD"]
+                        env["PATH"] = (
+                            r"C:\Program Files\MySQL\MySQL Server 8.0\lib;"
+                            r"C:\msys64\ucrt64\bin;"
+                            + env.get("PATH", "")
+                        )
+                        result = subprocess.run(
+                            [SIGNUP_PATH, "--validate"],
+                            input=(
+                                f"{email.strip()}\n"
+                                f"{username.strip()}\n"
+                                f"{password}\n"
+                                f"{confirm_password}\n"
+                            ),
+                            capture_output=True,
+                            text=True,
+                            timeout=10,
+                            cwd=BACKEND_PATH,
+                            env=env
+                        )
+                        message = result.stdout.strip()
+                        if result.returncode != 0 or message != "VALID":
+                            st.error(message or "Signup validation failed.")
+                            if result.stderr.strip():
+                                st.code(result.stderr.strip())
+                        else:
+                            result = subprocess.run(
+                                [SIGNUP_PATH, "--check"],
+                                input=f"{email.strip()}\n{username.strip()}\n",
+                                capture_output=True,
+                                text=True,
+                                timeout=10,
+                                cwd=BACKEND_PATH,
+                                env=env
+                            )
+                            message = result.stdout.strip()
+                            if result.returncode != 0:
+                                st.error("Could not check the database.")
+
+                                if result.stderr.strip():
+                                    st.code(result.stderr.strip())
+
+                            elif message == "USER_EXISTS":
+                                st.error(
+                                    "This email or username is already registered."
+                                )
+
+                            elif message == "AVAILABLE":
+                                st.session_state.email = email.strip()
+                                st.session_state.username = username.strip()
+                                st.session_state.password = password
+                                st.session_state.page = "otp"
+                                st.rerun()
+                            else:
+                                st.error("Unexpected database response.")
+                    except subprocess.TimeoutExpired:
+                        st.error("Signup operation timed out.")
+                    except Exception as e:
+                        st.error(f"Signup error: {e}")
+elif st.session_state.page == "otp":
     st.write("")
     st.write("")
     st.write("")
-    st.write("")
-    col1,col2,col3,col4=st.columns([3,1.2,2.5,0.5])
+    col1, col2, col3, col4 = st.columns([3, 1.2, 2.5, 0.5])
     with col1:
         st.write(" ")
         st.write(" ")
@@ -3483,7 +3536,6 @@ elif st.session_state.page=='otp':
         st.write(" ")
         st.write(" ")
         st.write(" ")
-        st.write(" ") 
         st.write(" ")
         st.write(" ")
         st.write(" ")
@@ -3493,143 +3545,146 @@ elif st.session_state.page=='otp':
         st.write(" ")
         st.write(" ")
         st.write(" ")
-        st.write(" ") 
         st.write(" ")
         st.write(" ")
         st.write(" ")
         st.write(" ")
-        st.write(" ") 
         st.write(" ")
-        st.write(" ")                           
-        if st.button("Back"):
-            st.session_state.page='signup'
+        st.write(" ")
+        st.write(" ")
+        st.write(" ")
+        st.write(" ")
+        st.write(" ")
+        st.write(" ")
+        st.write(" ")
+        st.write(" ")
+        if st.button("Back", key="otp_back_left"):
+            st.session_state.page = "signup"
             st.rerun()
     with col2:
         if "otp" not in st.session_state:
-            st.session_state.otp = ""
-            server=smtplib.SMTP("smtp.gmail.com",587)
-            server.starttls()
-            server.login("sakshamsharma.0407@gmail.com",'hedz kbbu zhmo yidq')
-            for i in range(0,6):
-                st.session_state.otp+=str(random.randint(0,9))
-            msg=EmailMessage()
-            from_mail="sakshamsharma.0407@gmail.com"
-            msg['Subject']='OTP Verification'
-            msg['From']=from_mail
-            msg['To']=st.session_state.email
-            msg.set_content(f"Your OTP is:{st.session_state.otp}")
-            server.send_message(msg)
-            server.quit()
+            st.session_state.otp = "".join(
+                str(random.randint(0, 9)) for _ in range(6)
+            )
+            try:
+                msg = EmailMessage()
+                msg["Subject"] = "CodePulse - OTP Verification"
+                msg["From"] = st.secrets["EMAIL_ADDRESS"]
+                msg["To"] = st.session_state.email
+                msg.set_content(
+                    f"Your CodePulse verification OTP is: "
+                    f"{st.session_state.otp}\n\n"
+                    "Do not share this code with anyone."
+                )
+                with smtplib.SMTP(
+                    "smtp.gmail.com", 587, timeout=20
+                ) as server:
+                    server.ehlo()
+                    server.starttls(
+                        context=ssl.create_default_context()
+                    )
+                    server.ehlo()
+                    server.login(
+                        st.secrets["EMAIL_ADDRESS"],
+                        st.secrets["EMAIL_APP_PASSWORD"]
+                    )
+                    server.send_message(msg)
+                st.session_state.otp_sent = True
+            except Exception as e:
+                st.session_state.otp_sent = False
+                st.session_state.pop("otp", None)
+                st.error(f"Could not send OTP: {e}")
         with st.container(key="otp_box"):
             st.subheader("Verification")
-            st.write("")
-            st.write("")
-            st.write("Check your email")
-            otp1=st.text_input("Enter OTP")
-            st.write("")
-            st.write("") 
-            if st.button("Submit"):
-                if st.session_state.otp==otp1:
-                    st.session_state.page="user"
-                    st.rerun()
-                else:
-                    st.error("Wrong OTP")
-    st.write("")
-    st.write("")
-    st.write("")
-    st.write("")
-    st.write("")
-    st.write("")
-    st.write("")
-    st.write("")
-    st.write("")
-    st.write("")
-    st.write("")
-    st.write("")
-    st.write("")
-    st.write("")
-    st.write("")
-    if st.button("Back"):
-                st.session_state.page='signup'
-                st.rerun()
-if st.session_state.page=='user':
-    st.write(" ")
-    st.write(" ")
-    col1,col2,col3,col4=st.columns([3,2,2.5,0.5])
-    with col1:
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ") 
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ") 
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ") 
-        st.write(" ")
-        st.write(" ") 
-        st.write(" ")
-        st.write(" ")
-        if st.button("Back"):
-            st.session_state.page='signup'
-            st.rerun()
-    with col2:
-        with st.container(key="otp_box"):
-            st.header("ㅤCODEPULSE")
-            st.write(" ")
-            st.write(" ")
-            username=st.text_input("Create your Username")
-            st.write(" ")
-            if st.button("Submit"):
-                if len(username)<=4:
-                    st.error("Choose username more than 4 letters")
-                elif ' ' in username:
-                    st.error("Username should not contain space")
-                else:
-                    try:
-                        connection=get_connection()
-                        cursor=connection.cursor()                    
-                        cursor.execute("SELECT id FROM users WHERE username = %s",(username,))
-                        existing_user = cursor.fetchone()
-                        if existing_user:
-                            st.error("Sorry, username already exists.")
-                        else:
+            st.write("Check your email for the 6-digit OTP.")
+            if st.session_state.get("otp_sent", False):
+                entered_otp = st.text_input(
+                    "Enter OTP",
+                    max_chars=6,
+                    key="entered_otp"
+                )
+                if st.button("Submit", key="otp_submit"):
+                    if entered_otp.strip() != st.session_state.otp:
+                        st.error("Wrong OTP. Please try again.")
+                    else:
+                        try:
+                            env = os.environ.copy()
+                            env["DB_PASSWORD"] = (
+                                st.secrets["DB_PASSWORD"]
+                            )
+                            env["PATH"] = (
+                                r"C:\Program Files\MySQL\MySQL Server 8.0\lib;"
+                                r"C:\msys64\ucrt64\bin;"
+                                + env.get("PATH", "")
+                            )
                             password_hash = bcrypt.hashpw(
-                            st.session_state.password.encode("utf-8"),
-                            bcrypt.gensalt()
+                                st.session_state.password.encode("utf-8"),
+                                bcrypt.gensalt()
                             ).decode("utf-8")
-                            connection=get_connection()
-                            cursor=connection.cursor()
-                            cursor.execute("""INSERT INTO USERS (username,password_hash,email) VALUES (%s,%s,%s)""",(username,password_hash,st.session_state.email))
-                            existing_user=cursor.fetchone()
-                            connection.commit()
-                            st.session_state.logged_in =True
-                            st.session_state.page='home'
-                            st.rerun()
-                    except mysql.connector.Error as e:
-                        st.error(f"Database error: {e}")
-                    finally:
-                        if "cursor" in locals():
-                            cursor.close()
-                        if "connection" in locals() and connection.is_connected():
-                            connection.close()
+
+                            result = subprocess.run(
+                                [SIGNUP_PATH],
+                                input=(
+                                    f"{st.session_state.email}\n"
+                                    f"{st.session_state.username}\n"
+                                    f"{password_hash}\n"
+                                ),
+                                capture_output=True,
+                                text=True,
+                                timeout=15,
+                                cwd=BACKEND_PATH,
+                                env=env
+                            )
+                            output = result.stdout.strip()
+
+                            if (
+                                result.returncode == 0
+                                and output == "SIGNUP_SUCCESS"
+                            ):
+                                st.session_state.logged_in = True
+                                st.session_state.current_user = (
+                                    st.session_state.username
+                                )
+                                st.session_state.page = "home"
+
+                                for key in (
+                                    "otp",
+                                    "otp_sent",
+                                    "entered_otp",
+                                    "password",
+                                    "signup_password",
+                                    "email",
+                                ):
+                                    st.session_state.pop(key, None)
+
+                                st.success("Account created successfully!")
+                                st.rerun()
+
+                            else:
+                                st.error("Could not create account.")
+                                st.write(
+                                    "Return code:",
+                                    result.returncode
+                                )
+                                st.write("C++ output:", repr(output))
+
+                                if result.stderr.strip():
+                                    st.code(result.stderr.strip())
+
+                        except subprocess.TimeoutExpired:
+                            st.error("Database operation timed out.")
+
+                        except Exception as e:
+                            st.error(f"Signup error: {e}")
+
+            else:
+                st.warning(
+                    "OTP was not sent. Return to signup and try again."
+                )
 elif st.session_state.page == "problem":
     question_no = st.session_state.question_no
     problem = questions[question_no]
+
     with st.container(key="problem-page"):
         st.markdown("""
         <style>
@@ -3653,39 +3708,51 @@ elif st.session_state.page == "problem":
         }
         </style>
         """, unsafe_allow_html=True)
+
         col1, col2, col3, col4 = st.columns([1, 6, 6, 1])
+
         with col2:
             c1, c2 = st.columns([6, 2])
+
             with c1:
                 st.write("")
                 st.write("")
                 st.markdown(
-                    f'<span style="color:#FFFFFF;font-size:26px;font-weight:bold;">'
-                    f'{question_no}. {problem["title"]}</span>',
+                    f'<span style="color:#FFFFFF;font-size:26px;'
+                    f'font-weight:bold;">{question_no}. '
+                    f'{problem["title"]}</span>',
                     unsafe_allow_html=True
                 )
+
             with c2:
                 st.write("")
                 st.write("")
-                difficulty_colors = {"Easy": "#00c853",    "Medium": "#ff9800",  "Hard": "#f44336"     }
+                difficulty_colors = {
+                    "Easy": "#00c853",
+                    "Medium": "#ff9800",
+                    "Hard": "#f44336"
+                }
                 difficulty = problem["difficulty"]
+
                 st.markdown(
-    f'<span style="color:{difficulty_colors.get(difficulty, "#FFFFFF")};'
-    f'font-size:26px;font-weight:bold;">'
-    f'{difficulty}</span>',
-    unsafe_allow_html=True
-)
+                    f'<span style="color:'
+                    f'{difficulty_colors.get(difficulty, "#FFFFFF")};'
+                    f'font-size:26px;font-weight:bold;">'
+                    f'{difficulty}</span>',
+                    unsafe_allow_html=True
+                )
+
             if "problem_tab" not in st.session_state:
                 st.session_state.problem_tab = "description"
+
             with st.container(key="description_box"):
                 tab1, tab2 = st.columns([0.5, 2])
+
                 with tab1:
-                    if st.button(
-                        "Description",
-                        key="description_tab"
-                    ):
+                    if st.button("Description", key="description_tab"):
                         st.session_state.problem_tab = "description"
                         st.rerun()
+
                 with tab2:
                     if st.button(
                         "Submitted Code",
@@ -3693,14 +3760,11 @@ elif st.session_state.page == "problem":
                     ):
                         st.session_state.problem_tab = "submitted"
                         st.rerun()
-                if st.session_state.problem_tab == "description":
 
+                if st.session_state.problem_tab == "description":
                     st.markdown("""
                     <style>
-                    .st-key-description_tab button {
-                        color: #2196F3 !important;
-                    }
-
+                    .st-key-description_tab button,
                     .st-key-description_tab button p {
                         color: #2196F3 !important;
                     }
@@ -3708,47 +3772,42 @@ elif st.session_state.page == "problem":
                     """, unsafe_allow_html=True)
 
                     st.write(problem["description"])
-
                     st.write("**Example:**")
-
                     st.code(problem["example"])
 
-                    st.write("**Constraints:**")
-
-                    st.write(
-                        """2 ≤ nums.length ≤ 10⁴
-
--10⁹ ≤ nums[i] ≤ 10⁹
-
--10⁹ ≤ target ≤ 10⁹"""
-                    )
-                    st.write(
-                        "**Challenge:** Try to solve the problem in "
-                        "better than O(n²) time complexity."
-                    )
                 else:
                     st.markdown("""
                     <style>
-                    .st-key-submitted_code_tab button {
-                        color: #2196F3 !important;
-                    }
-
+                    .st-key-submitted_code_tab button,
                     .st-key-submitted_code_tab button p {
                         color: #2196F3 !important;
                     }
                     </style>
                     """, unsafe_allow_html=True)
+
                     st.write("### Submitted Output")
+
                     if st.session_state.submission_output:
-                        if "🟩" in st.session_state.submission_output:
+                        submission = st.session_state.submission_output
+
+                        if "🟩" in submission:
                             st.success("🟩 Code executed successfully!")
-                        elif "🟥" in st.session_state.submission_output:
-                            st.error("🟥 Code was not accepted / execution failed.")
-                        st.code(st.session_state.submission_output)
+                            st.code(submission)
+
+                        elif "🟥" in submission:
+                            st.error(
+                                "🟥 Code was not accepted / execution failed."
+                            )
+                            st.code(submission)
+
+                        else:
+                            st.code(submission)
                     else:
                         st.write("No submission yet.")
+
         with col3:
-            top1, top2, top3,top4 = st.columns([3, 2.5,1.5, 1])
+            top1, top2, top3, top4 = st.columns([3, 2.5, 1.5, 1])
+
             with top2:
                 language = st.segmented_control(
                     "Language",
@@ -3756,15 +3815,15 @@ elif st.session_state.page == "problem":
                     default="C++",
                     key="language_select"
                 )
+
             with top4:
                 st.write("")
                 st.write("")
-                if st.button(
-                    "Back",
-                    key="back_butto"
-                ):
+
+                if st.button("Back", key="back_button"):
                     st.session_state.page = "problems"
                     st.rerun()
+
             if language == "C++":
                 text = st_ace(
                     value=problem["starter_code"],
@@ -3783,65 +3842,83 @@ elif st.session_state.page == "problem":
                     key=f"python_editor_{question_no}",
                     auto_update=True
                 )
+
             with top1:
                 st.write("")
+
                 with st.container(key="submit_button_box"):
                     st.markdown("""
-        <style>
-        .st-key-submit_button_box div.stButton > button {
-            background-color: #00c853 !important;
-            color: white !important;
-            border: 1px solid #00c853 !important;
-            border-radius: 8px !important;
-        }
+                    <style>
+                    .st-key-submit_button_box div.stButton > button {
+                        background-color: #00c853 !important;
+                        color: white !important;
+                        border: 1px solid #00c853 !important;
+                        border-radius: 8px !important;
+                    }
+                    .st-key-submit_button_box div.stButton > button:hover {
+                        background-color: #00b248 !important;
+                        color: white !important;
+                        border: 1px solid #00b248 !important;
+                    }
+                    </style>
+                    """, unsafe_allow_html=True)
 
-        .st-key-submit_button_box div.stButton > button:hover {
-            background-color: #00b248 !important;
-            color: white !important;
-            border: 1px solid #00b248 !important;
-        }
-        </style>
-        """, unsafe_allow_html=True)
-                    if st.button("Submit",key="submit_solution"):
+                    if st.button("Submit", key="submit_solution"):
                         if language == "C++":
-                            backend_path = r"C:\Users\saksh\OneDrive\Documents\CodePulse\Backend(C++)"
-                            judge_path = os.path.join(backend_path, "judge.exe")
+                            backend_path = (
+                                r"C:\Users\saksh\OneDrive\Documents"
+                                r"\CodePulse\Backend(C++)"
+                            )
+                            judge_path = os.path.join(
+                                backend_path, "judge.exe"
+                            )
+
                             try:
                                 result = subprocess.run(
-                [judge_path, str(question_no)],
-                input=text,
-                capture_output=True,
-                text=True,
-                cwd=backend_path,
-                timeout=60
-            )
+                                    [judge_path, str(question_no)],
+                                    input=text or "",
+                                    capture_output=True,
+                                    text=True,
+                                    cwd=backend_path,
+                                    timeout=60
+                                )
 
                                 output = (result.stdout or "").strip()
                                 error_output = (result.stderr or "").strip()
 
+                                if error_output:
+                                    st.code(error_output)
+
                                 if (
-                result.returncode == 0
-                and "ACCEPTED" in output
-                and "NOT ACCEPTED" not in output
-            ):
-                                    st.session_state.solved_questions.add(question_no)
+                                    result.returncode == 0
+                                    and "ACCEPTED" in output
+                                    and "NOT ACCEPTED" not in output
+                                ):
+                                    st.session_state.solved_questions.add(
+                                        question_no
+                                    )
                                     st.session_state.submission_output = (
-                    "🟩 Problem Solved!\n\n" + output
-                )
+                                        "🟩 Problem Solved!\n\n" + output
+                                    )
                                 else:
-                                    details = output if output else "No output returned by judge."
+                                    details = (
+                                        output
+                                        if output
+                                        else "No output returned by judge."
+                                    )
 
                                     if "NOT ACCEPTED" in output:
                                         st.session_state.submission_output = (
-            "🟥 Not Solved\n\n"
-            "Some test cases failed. Check the details below:\n\n"
-            + details
-        )
+                                            "🟥 Not Solved\n\n"
+                                            "Some test cases failed. "
+                                            "Check the details below:\n\n"
+                                            + details
+                                        )
                                     else:
                                         st.session_state.submission_output = (
-            "🟥 Execution Failed\n\n" + details
-        )
-
+                                            "🟥 Execution Failed\n\n"
+                                            + details
+                                        )
 
                                 st.session_state.problem_tab = "submitted"
                                 st.rerun()
@@ -3851,18 +3928,232 @@ elif st.session_state.page == "problem":
                                 partial_error = e.stderr or ""
 
                                 st.session_state.submission_output = (
-                "🟥 Timed out after 60 seconds.\n\n"
-                f"Partial output:\n{partial_output}\n\n"
-                f"Partial error:\n{partial_error}"
-            )
+                                    "🟥 Timed out after 60 seconds.\n\n"
+                                    f"Partial output:\n{partial_output}\n\n"
+                                    f"Partial error:\n{partial_error}"
+                                )
                                 st.session_state.problem_tab = "submitted"
                                 st.rerun()
 
                             except Exception as e:
                                 st.session_state.submission_output = (
-                f"🟥 Error: {e}"
-            )
+                                    f"🟥 Error: {e}"
+                                )
                                 st.session_state.problem_tab = "submitted"
                                 st.rerun()
+
     with st.sidebar:
         codepulse_chatbot(problem)
+elif st.session_state.page == "forgotuser":
+    col1, col2, col3, col4 = st.columns([3, 2, 2.5, 0.5])
+
+    with col2:
+        st.write("")
+        st.write("")
+        st.write("")
+        st.write("")
+        with st.container(key="otp_box"):
+            st.subheader("Forgot Password")
+            email = st.text_input(
+                "Registered Email",
+                placeholder="Enter your email address",
+                key="forgot_password_email"
+            )
+
+            if st.button("Continue", key="forgot_password_continue"):
+                if not email.strip():
+                    st.warning("Please enter your registered email.")
+                else:
+                    try:
+                        env = os.environ.copy()
+                        env["DB_PASSWORD"] = st.secrets["DB_PASSWORD"]
+                        env["PATH"] = (
+                            r"C:\Program Files\MySQL\MySQL Server 8.0\lib;"
+                            r"C:\msys64\ucrt64\bin;"
+                            + env.get("PATH", "")
+                        )
+
+                        result = subprocess.run(
+                            [CHECK_EMAIL_PATH],
+                            input=email.strip() + "\n",
+                            capture_output=True,
+                            text=True,
+                            timeout=10,
+                            cwd=BACKEND_PATH,
+                            env=env
+                        )
+
+                        output = result.stdout.strip()
+
+                        if result.returncode == 0 and output == "EMAIL_FOUND":
+                            st.session_state.recovery_email = email.strip()
+                            st.session_state.pop("reset_otp", None)
+                            st.session_state.pop("reset_otp_sent", None)
+                            st.session_state.pop("reset_otp_verified", None)
+                            st.session_state.page = "forgot_password_otp"
+                            st.rerun()
+
+                        elif result.returncode == 0 and output.startswith("USERNAME:"):
+                            st.error(
+        "Your recovery backend currently returns a username. "
+        "It needs to check whether the registered email exists."
+    )
+
+                        elif output == "EMAIL_NOT_FOUND":
+                            st.error("Email not found.")
+
+                        else:
+                            st.error(f"Recovery backend failed. Return code: {result.returncode}")
+                            st.write("C++ output:", repr(output))
+                            st.write("C++ error:", result.stderr.strip() or "(empty)")
+                    except subprocess.TimeoutExpired:
+                        st.error("Recovery request timed out.")
+                    except Exception as e:
+                        st.error(f"Recovery error: {e}")
+
+    with col1:
+        st.write(" ")
+        st.write(" ")
+        st.write(" ")
+        st.write(" ")
+        st.write(" ")
+        st.write(" ")
+        st.write(" ")
+        st.write(" ")
+        st.write(" ")
+        st.write(" ")
+        st.write(" ")
+        st.write(" ")
+        st.write(" ")
+        st.write(" ")
+        st.write(" ")
+        st.write(" ")
+        st.write(" ")
+        st.write(" ")
+        st.write(" ")
+        st.write(" ")
+        st.write(" ")
+        st.write(" ")
+        st.write(" ")
+        st.write(" ")
+        st.write(" ")
+        st.write(" ")
+        st.write(" ")
+        st.write(" ")
+        st.write(" ")
+        if st.button("Back", key="forgot_password_back"):
+            st.session_state.page = "login"
+            st.rerun()
+elif st.session_state.page == "forgot_password_otp":
+    col1, col2, col3, col4 = st.columns([3, 2, 2.5, 0.5])
+    with col2:
+        st.write("")
+        st.write("")
+        st.write("")
+        st.write("")
+        with st.container(key="otp_box"):
+            st.subheader("Enter OTP")
+
+            if "reset_otp" not in st.session_state:
+                st.session_state.reset_otp = "".join(
+                    str(random.randint(0, 9)) for _ in range(6)
+                )
+
+                try:
+                    msg = EmailMessage()
+                    msg["Subject"] = "CodePulse Password Reset OTP"
+                    msg["From"] = st.secrets["EMAIL_ADDRESS"]
+                    msg["To"] = st.session_state.recovery_email
+                    msg.set_content(
+                        f"Your password reset OTP is: "
+                        f"{st.session_state.reset_otp}\n"
+                        "Do not share this code with anyone."
+                    )
+
+                    with smtplib.SMTP(
+                        "smtp.gmail.com", 587, timeout=20
+                    ) as server:
+                        server.ehlo()
+                        server.starttls(
+                            context=ssl.create_default_context()
+                        )
+                        server.ehlo()
+                        server.login(
+                            st.secrets["EMAIL_ADDRESS"],
+                            st.secrets["EMAIL_APP_PASSWORD"]
+                        )
+                        server.send_message(msg)
+
+                    st.session_state.reset_otp_sent = True
+
+                except Exception as e:
+                    st.session_state.pop("reset_otp", None)
+                    st.session_state.reset_otp_sent = False
+                    st.error(f"Could not send OTP: {e}")
+
+            if st.session_state.get("reset_otp_sent", False):
+                otp_input = st.text_input(
+                    "Enter the OTP sent to your email",
+                    max_chars=6,
+                    key="reset_otp_input"
+                )
+
+                if st.button("Verify OTP", key="reset_verify_otp"):
+                    if otp_input.strip() == st.session_state.reset_otp:
+                        st.session_state.logged_in = True
+                        st.session_state.current_user = (
+                            st.session_state.get("recovery_email", "")
+                        )
+                        st.session_state.username = (
+                            st.session_state.get("recovery_email", "")
+                        )
+                        st.session_state.page = "home"
+
+                        for key in (
+                            "reset_otp",
+                            "reset_otp_sent",
+                            "reset_otp_verified",
+                            "recovery_email",
+                        ):
+                            st.session_state.pop(key, None)
+
+                        st.success("OTP verified! Login successful.")
+                        st.rerun()
+
+                    else:
+                        st.error("Incorrect OTP. Please try again.")
+    with col1:
+        st.write(" ")
+        st.write(" ")
+        st.write(" ")
+        st.write(" ")
+        st.write(" ")
+        st.write(" ")
+        st.write(" ")
+        st.write(" ")
+        st.write(" ")
+        st.write(" ")
+        st.write(" ")
+        st.write(" ")
+        st.write(" ")
+        st.write(" ")
+        st.write(" ")
+        st.write(" ")
+        st.write(" ")
+        st.write(" ")
+        st.write(" ")
+        st.write(" ")
+        st.write(" ")
+        st.write(" ")
+        st.write(" ")
+        st.write(" ")
+        st.write(" ")
+        st.write(" ")
+        st.write(" ")
+        st.write(" ")
+        st.write(" ")
+        if st.button("Back"):
+            st.session_state.page = "forgotuser"
+            st.rerun()
+
+
