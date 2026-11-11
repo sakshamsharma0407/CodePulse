@@ -1,3 +1,5 @@
 .streamlit/secrets.toml
 __pycache__/
 *.pycFrontend(Python)/.streamlit/secrets.toml
+
+Frontend(Python)/.streamlit/secrets.toml
