@@ -11,13 +11,17 @@ from openai import OpenAI
 import smtplib
 import ssl
 from pathlib import Path
-import os
+import mysql.connector
+import json
 BASE_DIR = Path(__file__).resolve().parent.parent
 BACKEND_PATH = BASE_DIR / "Backend(C++)"
 LOGIN_PATH = BACKEND_PATH / "login.exe"
 SIGNUP_PATH = BACKEND_PATH / "signup.exe"
 RECOVERY_PATH = BACKEND_PATH / "recovery.exe"
+PROGRESS_PATH = BACKEND_PATH / "progress.exe"
 CHECK_EMAIL_PATH = os.path.join(BACKEND_PATH, "recovery.exe")
+EVALUATOR_PATH = BACKEND_PATH / "evaluator.exe"
+history_path = os.path.join(BACKEND_PATH, "history.exe")
 client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 def codepulse_chatbot(problem):
     st.subheader("🤖 CodePulse AI")
@@ -240,6 +244,47 @@ st.markdown("""
 
 </style>
 """, unsafe_allow_html=True)
+question_topics = {
+    1: ["Arrays"],
+    2: ["Linked List"],
+    3: ["Stack"],
+    4: ["Binary Search"],
+    5: ["Arrays"],
+    6: ["Linked List"],
+    7: ["Graphs"],
+    8: ["Strings"],
+    9: ["Arrays"],
+    10: ["Trees"],
+    11: ["Arrays"],
+    12: ["Arrays"],
+    13: ["Linked List"],
+    14: ["Graphs"],
+    15: ["Stack"],
+    16: ["Recursion"],
+    17: ["Arrays", "Recursion"],
+    18: ["Strings", "Recursion"],
+    19: ["Strings", "Recursion"],
+    20: ["Recursion"],
+    21: ["Recursion"],
+    22: ["Arrays", "Sorting"],
+    23: ["Arrays", "Sorting"],
+    24: ["Arrays", "Sorting"],
+    25: ["Arrays", "Sorting"],
+    26: ["Arrays", "Sorting"],
+    27: ["Strings"],
+    28: ["Strings"],
+    29: ["Arrays", "Strings"],
+    30: ["Strings"],
+    31: ["Stack"],
+    32: ["Stack"],
+    33: ["Arrays"],
+    34: ["Trees"],
+    35: ["Trees"],
+    36: ["Trees"],
+    37: ["Trees"],
+    38: ["Graphs"],
+    39: ["Graphs", "Trees"]
+}
 questions = {
     1: {
         "title": "Two Sum Array",
@@ -255,7 +300,7 @@ Output: [0,1]""",
 #include <vector>
 using namespace std;
 
-vector<int> twoSet(vector<int>& nums, int target) {
+vector<int> twoSum(vector<int>& nums, int target) {
     // Student writes solution here
 }
 
@@ -267,7 +312,7 @@ int main() {
     for (int i = 0; i < n; i++)
         cin >> nums[i];
 
-    vector<int> ans = twoSet(nums, target);
+    vector<int> ans = twoSum(nums, target);
 
     if (ans.size() == 2)
         cout << ans[0] << " " << ans[1];
@@ -1888,6 +1933,916 @@ int main() {
 }"""
 }
 }
+def get_db_connection():
+    return mysql.connector.connect(
+        host=st.secrets.get("DB_HOST", "localhost"),
+        user=st.secrets["DB_USER"],
+        password=st.secrets["DB_PASSWORD"],
+        database=st.secrets["DB_NAME"]
+    )
+def get_solved_questions(username):
+    conn = None
+    cursor = None
+
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        query = """
+            SELECT DISTINCT s.question_id
+            FROM submissions s
+            INNER JOIN users u ON s.user_id = u.id
+            WHERE u.username = %s
+            AND s.status = 'ACCEPTED'
+        """
+
+        cursor.execute(query, (username,))
+
+        solved_ids = {int(row[0]) for row in cursor.fetchall()}
+
+        return solved_ids
+
+    except mysql.connector.Error as e:
+        st.error(f"Could not load solved questions: {e}")
+        return set()
+
+    finally:
+        if cursor:
+            cursor.close()
+        if conn and conn.is_connected():
+            conn.close()
+def fetch_submission_history(username):
+
+    history_path = os.path.join(BACKEND_PATH, "history.exe")
+
+    env = os.environ.copy()
+
+    env["DB_HOST"] = st.secrets["DB_HOST"]
+    env["DB_USER"] = st.secrets["DB_USER"]
+    env["DB_PASSWORD"] = st.secrets["DB_PASSWORD"]
+    env["DB_NAME"] = st.secrets["DB_NAME"]
+
+    try:
+        result = subprocess.run(
+            [history_path, username],
+            capture_output=True,
+            text=True,
+            cwd=BACKEND_PATH,
+            timeout=15,
+            env=env
+        )
+
+        if result.returncode != 0:
+            st.error(f"History error: {result.stderr}")
+            return []
+
+        import json
+        data = json.loads(result.stdout)
+
+        return data["history"]
+
+    except Exception as e:
+        return []
+bug_questions = [
+    {
+        "question": "Why does the value of x remain unchanged?",
+        "code": """void update(int x) {
+    x = 50;
+}
+int main() {
+    int x = 10;
+    update(x);
+    cout << x;
+}""",
+        "options": ["Function is not called", "Argument is passed by value", "Incorrect return type", "Variable is not initialized"],
+        "answer": "Argument is passed by value"
+    },
+    {
+        "question": "What is the logical error in this recursive function?",
+        "code": """int sum(int n) {
+    if(n == 0)
+        return 0;
+    return n + sum(n);
+}""",
+        "options": ["Wrong return type", "Recursive call does not reduce n", "Missing function parameter", "Incorrect base condition"],
+        "answer": "Recursive call does not reduce n"
+    },
+    {
+        "question": "Identify the error in this class.",
+        "code": """class Student {
+    int marks;
+};
+int main() {
+    Student s;
+    s.marks = 90;
+}""",
+        "options": ["Missing constructor", "Object cannot be created", "marks is private by default", "Class cannot contain integers"],
+        "answer": "marks is private by default"
+    },
+    {
+        "question": "What causes the compilation error?",
+        "code": """class Student {
+public:
+    Student(int m) {
+        cout << m;
+    }
+};
+int main() {
+    Student s;
+}""",
+        "options": ["Constructor cannot take parameters", "No default constructor is available", "Object name is invalid", "Constructor has no return type"],
+        "answer": "No default constructor is available"
+    },
+    {
+        "question": "What is the problem with this inheritance code?",
+        "code": """class Parent {
+private:
+    int x = 10;
+};
+class Child : public Parent {
+public:
+    void display() {
+        cout << x;
+    }
+};""",
+        "options": ["Derived class cannot contain functions", "Private member cannot be accessed directly in derived class", "Inheritance syntax is incorrect", "Parent class cannot have variables"],
+        "answer": "Private member cannot be accessed directly in derived class"
+    },
+    {
+        "question": "Identify the memory management bug.",
+        "code": """int main() {
+    int *p = new int(20);
+    cout << *p;
+    p = new int(30);
+    delete p;
+}""",
+        "options": ["Incorrect dereferencing", "Memory leak", "Invalid pointer declaration", "Dangling pointer"],
+        "answer": "Memory leak"
+    },
+    {
+        "question": "What is missing when inserting a node at the beginning?",
+        "code": """struct Node {
+    int data;
+    Node* next;
+};
+void insert(Node*& head, int value) {
+    Node* newNode = new Node;
+    newNode->data = value;
+    head = newNode;
+}""",
+        "options": ["Linking the new node to the previous head", "Function parameter", "Memory allocation", "Data assignment"],
+        "answer": "Linking the new node to the previous head"
+    },
+    {
+        "question": "Why can this linked list traversal crash?",
+        "code": """while(head->next != NULL) {
+    cout << head->data;
+    head = head->next;
+}""",
+        "options": ["Linked lists cannot use while loops", "head may be NULL before accessing head->next", "The loop uses the wrong operator", "Data cannot be printed in a loop"],
+        "answer": "head may be NULL before accessing head->next"
+    },
+    {
+        "question": "What is the stack operation error?",
+        "code": """int stack[5];
+int top = -1;
+void pop() {
+    cout << stack[top];
+    top--;
+}""",
+        "options": ["Incorrect decrement", "Stack underflow is not checked", "Wrong array declaration", "Stack overflow"],
+        "answer": "Stack underflow is not checked"
+    },
+    {
+        "question": "What is wrong with this queue insertion?",
+        "code": """int queue[5];
+int rear = -1;
+void enqueue(int x) {
+    rear++;
+    queue[rear] = x;
+}""",
+        "options": ["Invalid array declaration", "Queue overflow is not checked", "Queue underflow", "Wrong increment operator"],
+        "answer": "Queue overflow is not checked"
+    },
+    {
+        "question": "Why might this binary search fail to find an existing element?",
+        "code": """int binarySearch(int arr[], int n, int key) {
+    int low = 0, high = n;
+    while(low <= high) {
+        int mid = (low + high) / 2;
+        if(arr[mid] == key)
+            return mid;
+        else if(arr[mid] < key)
+            low = mid + 1;
+        else
+            high = mid - 1;
+    }
+    return -1;
+}""",
+        "options": ["Return type should be void", "Initial high value is incorrect", "Mid calculation is invalid", "Array must be sorted"],
+        "answer": "Initial high value is incorrect"
+    },
+    {
+        "question": "Why does this bubble sort not sort the array correctly?",
+        "code": """for(int i = 0; i < n; i++) {
+    for(int j = 0; j < n - 1; j++) {
+        if(arr[j] < arr[j + 1]) {
+            swap(arr[j], arr[j + 1]);
+        }
+    }
+}""",
+        "options": ["Swap cannot be used in sorting", "Wrong comparison for ascending order", "Missing array declaration", "Wrong loop variable"],
+        "answer": "Wrong comparison for ascending order"
+    },
+    {
+        "question": "What is the bug in this BST insertion function?",
+        "code": """Node* insert(Node* root, int value) {
+    if(root == NULL)
+        return new Node(value);
+    if(value < root->data)
+        insert(root->left, value);
+    else
+        insert(root->right, value);
+    return root;
+}""",
+        "options": ["Missing base condition", "Recursive results are not assigned", "Incorrect comparison", "Wrong return type"],
+        "answer": "Recursive results are not assigned"
+    },
+    {
+        "question": "What is the problem with this vector code?",
+        "code": """vector<int> v;
+v[0] = 10;
+v.push_back(20);
+cout << v[0];""",
+        "options": ["Vector needs a fixed size", "Accessing an element before it exists", "push_back is invalid", "Vector cannot store integers"],
+        "answer": "Accessing an element before it exists"
+    },
+    {
+        "question": "Why does this code not correctly compare two strings?",
+        "code": """string a = "hello";
+string b = "hello";
+if(a == b)
+    cout << "Same";""",
+        "options": ["Missing string header", "Wrong comparison operator", "No error in this code", "Strings cannot be compared"],
+        "answer": "No error in this code"
+    },
+    {
+        "question": "What is the indexing error?",
+        "code": """int matrix[2][3];
+for(int i = 0; i < 3; i++) {
+    for(int j = 0; j < 2; j++) {
+        cin >> matrix[i][j];
+    }
+}""",
+        "options": ["Rows and columns are interchanged", "Matrix cannot use nested loops", "Missing return statement", "Wrong data type"],
+        "answer": "Rows and columns are interchanged"
+    },
+    {
+        "question": "What is missing in this operator overloading code?",
+        "code": """class Number {
+public:
+    int value;
+    Number operator+(Number obj) {
+        Number temp;
+        temp.value = value + obj.value;
+    }
+};""",
+        "options": ["Parameter must be an integer", "Missing return statement", "Class cannot contain operators", "Operator name is invalid"],
+        "answer": "Missing return statement"
+    },
+    {
+        "question": "Why might this file reading operation fail?",
+        "code": """ifstream fin("data.txt");
+int x;
+fin >> x;
+cout << x;""",
+        "options": ["File must have a .cpp extension", "Wrong extraction operator", "File opening success is not checked", "ifstream cannot read integers"],
+        "answer": "File opening success is not checked"
+    },
+    {
+        "question": "What is wrong with this linear search?",
+        "code": """int search(int arr[], int n, int key) {
+    for(int i = 0; i < n; i++) {
+        if(arr[i] == key)
+            return -1;
+    }
+    return -1;
+}""",
+        "options": ["Found element returns the wrong value", "Missing initialization", "Wrong loop condition", "Array cannot be searched"],
+        "answer": "Found element returns the wrong value"
+    },
+    {
+        "question": "What is the logical mistake in this code?",
+        "code": """int n = 6;
+if(n & 1 == 0) {
+    cout << "Even";
+}
+else {
+    cout << "Odd";
+}""",
+        "options": ["Missing else-if", "Bitwise AND has incorrect precedence here", "n must be a float", "Bitwise AND cannot be used with integers"],
+        "answer": "Bitwise AND has incorrect precedence here"
+    },
+    {
+        "question": "Why does this code produce a compilation error?",
+        "code": """class Test {
+    int x = 10;
+public:
+    friend void display();
+};
+void display() {
+    cout << x;
+}""",
+        "options": ["Friend functions cannot access private members", "Class cannot contain private variables", "x is not accessible without an object", "Friend function must return int"],
+        "answer": "x is not accessible without an object"
+    },
+    {
+        "question": "What is the problem with this code?",
+        "code": """class Counter {
+public:
+    static int count;
+};
+int main() {
+    Counter::count = 10;
+    cout << Counter::count;
+}""",
+        "options": ["Missing constructor", "Static member is declared but not defined", "Static variables cannot be accessed using class name", "Static variables cannot store integers"],
+        "answer": "Static member is declared but not defined"
+    },
+    {
+        "question": "Why does this code call the base class function?",
+        "code": """class Base {
+public:
+    void show() {
+        cout << "Base";
+    }
+};
+class Derived : public Base {
+public:
+    void show() {
+        cout << "Derived";
+    }
+};
+int main() {
+    Base* p = new Derived();
+    p->show();
+}""",
+        "options": ["Derived class cannot redefine functions", "Base function is not virtual", "Pointer cannot point to Derived", "Inheritance is incorrect"],
+        "answer": "Base function is not virtual"
+    },
+    {
+        "question": "What is the memory management problem?",
+        "code": """class Test {
+public:
+    int* p;
+    Test() {
+        p = new int[10];
+    }
+};
+int main() {
+    Test t;
+}""",
+        "options": ["Pointer must be static", "Dynamically allocated memory is never released", "Array allocation is invalid", "Constructor cannot allocate memory"],
+        "answer": "Dynamically allocated memory is never released"
+    },
+    {
+        "question": "What is the issue with this copy constructor?",
+        "code": """class Test {
+public:
+    int* p;
+    Test(int x) {
+        p = new int(x);
+    }
+    Test(const Test& obj) {
+        p = obj.p;
+    }
+};""",
+        "options": ["Constructor must return a value", "Shallow copying causes shared ownership", "Pointer cannot be copied", "Copy constructor cannot accept references"],
+        "answer": "Shallow copying causes shared ownership"
+    },
+    {
+        "question": "Why is the exception not caught correctly?",
+        "code": """try {
+    throw 10;
+}
+catch(float x) {
+    cout << "Caught";
+}""",
+        "options": ["Missing finally block", "Try block cannot throw integers", "Catch type does not match thrown type", "Integer exceptions cannot be thrown"],
+        "answer": "Catch type does not match thrown type"
+    },
+    {
+        "question": "What causes undefined behavior in this code?",
+        "code": """vector<int> v = {10, 20, 30};
+for(auto it = v.begin(); it != v.end(); it++) {
+    if(*it == 20)
+        v.erase(it);
+}""",
+        "options": ["Iterator becomes invalid after erase", "begin() returns an integer", "Vectors cannot use iterators", "erase cannot remove integers"],
+        "answer": "Iterator becomes invalid after erase"
+    },
+    {
+        "question": "What is wrong with this code?",
+        "code": """map<int, string> students;
+students[1] = "Aman";
+students[2] = "Ravi";
+cout << students[3].length();""",
+        "options": ["Map cannot store strings", "length() cannot be used", "Accessing key 3 inserts an empty string", "Map keys must be strings"],
+        "answer": "Accessing key 3 inserts an empty string"
+    },
+    {
+        "question": "Which operation is invalid in this code?",
+        "code": """deque<int> dq;
+dq.pop_front();
+dq.push_back(10);""",
+        "options": ["Storing integer values", "pop_front on an empty deque", "Creating a deque", "push_back"],
+        "answer": "pop_front on an empty deque"
+    },
+    {
+        "question": "Why does this code print the largest element first?",
+        "code": """priority_queue<int> pq;
+pq.push(10);
+pq.push(30);
+pq.push(20);
+cout << pq.top();""",
+        "options": ["top() returns the smallest value", "Default priority_queue is a max heap", "push() reverses elements", "Priority queues always sort in ascending order"],
+        "answer": "Default priority_queue is a max heap"
+    },
+    {
+        "question": "What is missing in this BFS implementation?",
+        "code": """void BFS(int start) {
+    queue<int> q;
+    q.push(start);
+    while(!q.empty()) {
+        int node = q.front();
+        q.pop();
+        cout << node << " ";
+        for(int next : adj[node]) {
+            q.push(next);
+        }
+    }
+}""",
+        "options": ["Visited array to avoid repeated traversal", "A recursive function", "A stack", "A sorting function"],
+        "answer": "Visited array to avoid repeated traversal"
+    },
+    {
+        "question": "Why can this DFS function get stuck in recursion?",
+        "code": """void DFS(int node) {
+    cout << node << " ";
+    for(int next : adj[node]) {
+        DFS(next);
+    }
+}""",
+        "options": ["Missing return type", "Adjacency lists cannot store integers", "Missing visited tracking", "DFS cannot use recursion"],
+        "answer": "Missing visited tracking"
+    },
+    {
+        "question": "What is wrong with this merge sort splitting logic?",
+        "code": """void mergeSort(int arr[], int low, int high) {
+    if(low >= high)
+        return;
+    int mid = (low + high) / 2;
+    mergeSort(arr, low, mid);
+    mergeSort(arr, mid, high);
+}""",
+        "options": ["Mid should always be zero", "Second recursive call should start at mid + 1", "Merge sort cannot use recursion", "Wrong base condition"],
+        "answer": "Second recursive call should start at mid + 1"
+    },
+    {
+        "question": "What is the bug in this partition function?",
+        "code": """int partition(int arr[], int low, int high) {
+    int pivot = arr[high];
+    int i = low - 1;
+    for(int j = low; j < high; j++) {
+        if(arr[j] <= pivot) {
+            i++;
+            swap(arr[i], arr[j]);
+        }
+    }
+    swap(arr[i], arr[high]);
+    return i;
+}""",
+        "options": ["Incorrect final pivot index", "Missing comparison", "Wrong loop condition", "Wrong pivot selection"],
+        "answer": "Incorrect final pivot index"
+    },
+    {
+        "question": "What is wrong with this circular queue insertion?",
+        "code": """rear = (rear + 1) % size;
+queue[rear] = value;""",
+        "options": ["Circular queues cannot use arrays", "Queue-full condition is not checked", "Rear cannot be updated", "Modulo operator is invalid"],
+        "answer": "Queue-full condition is not checked"
+    },
+    {
+        "question": "What is missing when inserting a node after a given node?",
+        "code": """newNode->next = current->next;
+current->next = newNode;""",
+        "options": ["Deleting current", "Updating the previous pointer of the next node", "Changing the data type", "Allocating an array"],
+        "answer": "Updating the previous pointer of the next node"
+    },
+    {
+        "question": "What is the mistake in this matrix multiplication code?",
+        "code": """int A[2][3], B[2][3], C[2][3];
+for(int i = 0; i < 2; i++) {
+    for(int j = 0; j < 3; j++) {
+        C[i][j] = 0;
+        for(int k = 0; k < 3; k++) {
+            C[i][j] += A[i][k] * B[k][j];
+        }
+    }
+}""",
+        "options": ["The inner loop should run twice", "Matrices have incompatible dimensions", "Multiplication cannot use three loops", "The output matrix must have 2 rows and 3 columns"],
+        "answer": "Matrices have incompatible dimensions"
+    },
+    {
+        "question": "Why is this function overloading invalid?",
+        "code": """int calculate(int a, int b) {
+    return a + b;
+}
+float calculate(int a, int b) {
+    return a + b;
+}""",
+        "options": ["Functions cannot differ only by return type", "Float cannot be returned", "Integer parameters are invalid", "Functions cannot have the same name"],
+        "answer": "Functions cannot differ only by return type"
+    },
+    {
+        "question": "What causes the compilation error?",
+        "code": """void display(const int x) {
+    x = 50;
+}""",
+        "options": ["Missing return statement", "A const variable cannot be modified", "Function cannot accept integers", "Functions cannot assign values"],
+        "answer": "A const variable cannot be modified"
+    },
+    {
+        "question": "What is the problem with this postfix evaluation code?",
+        "code": """stack<int> st;
+st.push(10);
+st.push(20);
+int a = st.top();
+st.pop();
+int b = st.top();
+st.pop();
+st.push(a - b);
+cout << st.top();""",
+        "options": ["Subtraction cannot be performed using a stack", "Operands are subtracted in the wrong order", "pop() must come before top()", "Stack cannot store integers"],
+        "answer": "Operands are subtracted in the wrong order"
+    },
+    {
+        "question": "What is the bug in this code?",
+        "code": """int x = 10;
+if(x == 10);
+{
+    cout << "Correct";
+}""",
+        "options": ["Wrong comparison operator", "Extra semicolon after if", "Wrong variable declaration", "Missing return statement"],
+        "answer": "Extra semicolon after if"
+    },
+    {
+        "question": "Identify the error.",
+        "code": """int arr[5] = {1, 2, 3, 4, 5};
+cout << arr[5];""",
+        "options": ["Missing loop", "Array index out of bounds", "Invalid cout statement", "Array is not initialized"],
+        "answer": "Array index out of bounds"
+    },
+    {
+        "question": "What is wrong with this loop?",
+        "code": """for(int i = 0; i < 5; i--) {
+    cout << i;
+}""",
+        "options": ["Missing semicolon", "Wrong increment direction", "Wrong initialization", "Wrong condition"],
+        "answer": "Wrong increment direction"
+    },
+    {
+        "question": "Find the logical error.",
+        "code": """int a = 5, b = 10;
+if(a > b) {
+    cout << "A is smaller";
+}""",
+        "options": ["Wrong output statement", "Missing braces", "Incorrect condition", "Wrong variable declaration"],
+        "answer": "Incorrect condition"
+    },
+    {
+        "question": "What is the bug?",
+        "code": """int n = 5;
+while(n > 0) {
+    cout << n << " ";
+    n++;
+}""",
+        "options": ["Wrong data type", "Infinite loop", "Invalid condition", "Missing initialization"],
+        "answer": "Infinite loop"
+    },
+    {
+        "question": "Identify the pointer error.",
+        "code": """int *p;
+*p = 20;
+cout << *p;""",
+        "options": ["Missing return", "Pointer is not initialized", "Invalid output statement", "Wrong pointer syntax"],
+        "answer": "Pointer is not initialized"
+    },
+    {
+        "question": "What is wrong with this function?",
+        "code": """int add(int a, int b) {
+    int sum = a + b;
+}""",
+        "options": ["Missing function call", "Missing return statement", "Wrong parameters", "Wrong variable name"],
+        "answer": "Missing return statement"
+    },
+    {
+        "question": "Find the error.",
+        "code": """int x = 10;
+if(x = 0) {
+    cout << "Zero";
+}""",
+        "options": ["Missing braces", "Assignment instead of comparison", "Invalid condition syntax", "Wrong variable type"],
+        "answer": "Assignment instead of comparison"
+    },
+    {
+        "question": "What is the bug in this array code?",
+        "code": """int arr[4] = {1, 2, 3, 4};
+for(int i = 0; i <= 4; i++) {
+    cout << arr[i];
+}""",
+        "options": ["Missing initialization", "Loop runs one extra time", "Wrong array size", "Wrong data type"],
+        "answer": "Loop runs one extra time"
+    },
+    {
+        "question": "Identify the error.",
+        "code": """int a = 10;
+int b = 0;
+cout << a / b;""",
+        "options": ["Wrong operator", "Division by zero", "Integer overflow", "Invalid declaration"],
+        "answer": "Division by zero"
+    },
+    {
+        "question": "What is the problem with this code?",
+        "code": """int x = 5;
+if(x > 2 && x < 4) {
+    cout << "Valid";
+}""",
+        "options": ["Wrong variable declaration", "Condition can never be true", "Invalid logical operator", "Missing else block"],
+        "answer": "Condition can never be true"
+    },
+    {
+        "question": "Find the bug in this code.",
+        "code": """int i;
+for(i = 1; i <= 5; i++);
+{
+    cout << i;
+}""",
+        "options": ["Wrong loop condition", "Extra semicolon after for loop", "Missing increment", "Uninitialized variable"],
+        "answer": "Extra semicolon after for loop"
+    },
+    {
+        "question": "What is wrong with this code?",
+        "code": """int x = 10;
+if(x > 5) {
+    int y = 20;
+}
+cout << y;""",
+        "options": ["Variable y is out of scope", "Missing return", "Invalid integer declaration", "Wrong condition"],
+        "answer": "Variable y is out of scope"
+    },
+    {
+        "question": "Identify the error in this code.",
+        "code": """int arr[3] = {10, 20, 30};
+cout << arr[0 + 3];""",
+        "options": ["Wrong output operator", "Array index out of bounds", "Invalid addition", "Missing array declaration"],
+        "answer": "Array index out of bounds"
+    },
+    {
+        "question": "What is the bug?",
+        "code": """int n = 10;
+if(n > 5) {
+    cout << "Greater";
+}
+else if(n > 8) {
+    cout << "Very Greater";
+}""",
+        "options": ["Wrong data type", "Unreachable else-if condition", "Missing else statement", "Invalid comparison"],
+        "answer": "Unreachable else-if condition"
+    }
+]
+def show_bug_hunt():
+
+    defaults = {
+        "bug_score": 0,
+        "bug_question": None,
+        "bug_answered": False,
+        "bug_selected": None,
+        "bug_attempts": 0,
+        "bug_correct": 0
+    }
+
+    for key, value in defaults.items():
+        if key not in st.session_state:
+            st.session_state[key] = value
+
+    st.markdown("""
+        <style>
+        .bug-header {
+            background: linear-gradient(120deg, #202020, #303030);
+            padding: 22px;
+            border-radius: 14px;
+            border: 1px solid #383838;
+            margin-bottom: 22px;
+        }
+
+        .bug-label {
+            color: #00e676;
+            font-size: 12px;
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+
+        .bug-title {
+            color: white;
+            font-size: 30px;
+            font-weight: bold;
+        }
+
+        .score-panel {
+            background: #202020;
+            padding: 20px;
+            border-radius: 14px;
+            border: 1px solid #383838;
+            text-align: center;
+            margin-bottom: 15px;
+        }
+
+        .score-number {
+            font-size: 34px;
+            color: #00e676;
+            font-weight: bold;
+        }
+
+        .score-label {
+            color: #aaaaaa;
+            font-size: 13px;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
+    question_col, score_col = st.columns([3.2, 1])
+
+    with question_col:
+
+        if st.session_state.bug_question is None:
+
+            st.markdown("### Ready for a challenge?")
+            st.write("Generate a random C++ debugging question to begin.")
+
+            if st.button("Generate Random Question",
+                         use_container_width=True,
+                         type="primary"):
+
+                st.session_state.bug_question = random.choice(bug_questions)
+                st.session_state.bug_answered = False
+                st.session_state.bug_selected = None
+                st.rerun()
+
+        else:
+
+            q = st.session_state.bug_question
+
+            st.markdown("### Identify the Error")
+            st.caption("Inspect the following code and find the bug.")
+
+            st.code(q["code"], language="cpp")
+
+            selected = st.radio(
+                "Choose the correct answer:",
+                q["options"],
+                key="bug_mcq_options",
+                disabled=st.session_state.bug_answered
+            )
+
+            if not st.session_state.bug_answered:
+
+                if st.button("Submit Answer",
+                             use_container_width=True,
+                             type="primary"):
+
+                    st.session_state.bug_selected = selected
+                    st.session_state.bug_answered = True
+                    st.session_state.bug_attempts += 1
+
+                    if selected == q["answer"]:
+                        st.session_state.bug_score += 10
+                        st.session_state.bug_correct += 1
+
+                    st.rerun()
+
+            else:
+
+                if st.session_state.bug_selected == q["answer"]:
+                    st.success("Correct! +10 points")
+                else:
+                    st.error("Incorrect answer!")
+                previous_question = st.session_state.bug_question
+
+                available_questions = [
+    q for q in bug_questions
+    if q != previous_question
+                ]
+
+                st.session_state.bug_question = random.choice(
+                available_questions or bug_questions
+                )
+
+                st.session_state.bug_answered = False
+                st.session_state.bug_selected = None
+                st.rerun()
+
+    with score_col:
+
+        st.markdown("### Your Stats")
+
+        st.markdown(f"""
+            <div class="score-panel">
+                <div class="score-label">TOTAL SCORE</div>
+                <div class="score-number">
+                    {st.session_state.bug_score}
+                </div>
+                <div class="score-label">POINTS</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+        st.metric("Attempted",
+                  st.session_state.bug_attempts)
+
+        st.metric("Correct",
+                  st.session_state.bug_correct)
+        accuracy = (
+            st.session_state.bug_correct /
+            st.session_state.bug_attempts * 100
+            if st.session_state.bug_attempts > 0 else 0
+        )
+        st.metric("Accuracy", f"{accuracy:.1f}%")
+        if st.session_state.bug_attempts > 0:
+            st.progress(accuracy / 100)
+def fetch_progress_data(username):
+
+    if not PROGRESS_PATH.exists():
+        return None, "Progress executable not found. Compile progress.cpp first."
+
+    input_data = f"{len(questions)}\n"
+
+    # Send question details to C++
+    for qid, question in questions.items():
+
+        topics = question_topics.get(qid, [])
+
+        input_data += f"{qid}\n"
+        input_data += f"{question['title']}\n"
+
+        # Send topic count
+        input_data += f"{len(topics)}\n"
+
+        # Send each topic separately
+        for topic in topics:
+            input_data += f"{topic}\n"
+
+        input_data += f"{question['difficulty']}\n"
+
+    # Database environment variables
+    env = os.environ.copy()
+
+    env["DB_HOST"] = st.secrets["DB_HOST"]
+    env["DB_USER"] = st.secrets["DB_USER"]
+    env["DB_PASSWORD"] = st.secrets["DB_PASSWORD"]
+    env["DB_NAME"] = st.secrets["DB_NAME"]
+
+    try:
+
+        result = subprocess.run(
+            [str(PROGRESS_PATH), username],
+            input=input_data,
+            text=True,
+            capture_output=True,
+            cwd=str(BACKEND_PATH),
+            timeout=15,
+            env=env
+        )
+
+        if result.returncode != 0:
+            return None, result.stderr or "Progress calculation failed."
+
+        output = result.stdout.strip()
+
+        if not output:
+            return None, "C++ returned an empty response."
+
+        try:
+            progress_data = json.loads(output)
+        except json.JSONDecodeError:
+            return None, f"Invalid JSON returned by C++:\n{output}"
+
+        return progress_data, None
+
+    except subprocess.TimeoutExpired:
+        return None, "Progress calculation timed out."
+
+    except Exception as e:
+        return None, str(e)
 def search_questions(query, questions):
     query = query.lower().strip()
     results = []
@@ -1905,6 +2860,208 @@ def search_questions(query, questions):
             results.append((question_no, question))
 
     return results
+
+def show_progress_page():
+
+    col1, col2, col3 = st.columns([1, 12, 1])
+
+    with col2:
+
+        st.title("My Progress")
+        st.caption("Track your coding performance and improve your skills.")
+
+        username = st.session_state.get("username")
+
+        if not username:
+            st.warning("Please log in to view your progress.")
+            return
+
+        with st.spinner("Calculating your progress..."):
+            data, error = fetch_progress_data(username)
+
+        if error:
+            st.error(error)
+            return
+
+        # Overall Performance
+        st.subheader("Overall Performance")
+
+        solved = data["solved_questions"]
+        total = data["total_questions"]
+        completion = float(data["overall_percentage"])
+        accuracy = float(data["accuracy"])
+
+        st.metric(
+            "Overall Completion",
+            f"{completion:.1f}%",
+            f"{solved} out of {total} problems solved"
+        )
+
+        st.progress(min(max(completion / 100, 0), 1))
+
+        c1, c2 = st.columns(2)
+
+        with c1:
+            st.metric("Problems Solved", f"{solved}/{total}")
+
+        with c2:
+            st.metric("Accuracy", f"{accuracy:.1f}%")
+
+        c3, c4 = st.columns(2)
+
+        with c3:
+            st.metric(
+                "Total Submissions",
+                data["total_submissions"]
+            )
+
+        with c4:
+            st.metric(
+                "Accepted Submissions",
+                data["accepted_submissions"]
+            )
+
+        st.divider()
+
+        # Difficulty-wise Progress
+        st.subheader("Difficulty-wise Progress")
+
+        difficulty_data = data["difficulty"]
+
+        easy, medium, hard = st.columns(3)
+
+        for column, level in [
+            (easy, "Easy"),
+            (medium, "Medium"),
+            (hard, "Hard")
+        ]:
+
+            solved_count, total_count = difficulty_data[level]
+
+            percentage = (
+                solved_count / total_count
+                if total_count > 0 else 0
+            )
+
+            with column:
+                st.write(f"**{level}**")
+                st.metric(
+                    "Solved",
+                    f"{solved_count}/{total_count}"
+                )
+                st.progress(percentage)
+                st.caption(f"{percentage * 100:.1f}% completed")
+
+        st.divider()
+
+        # Topic-wise Progress
+        st.subheader("Topic-wise Progress")
+
+        topics = data["topics"]
+
+        if topics:
+
+            for topic in topics:
+
+                name = topic["name"]
+                solved_count = topic["solved"]
+                total_count = topic["total"]
+                percentage = float(topic["percentage"])
+
+                c1, c2 = st.columns([5, 1])
+
+                with c1:
+                    st.write(f"**{name}**")
+
+                with c2:
+                    st.write(f"{percentage:.1f}%")
+
+                st.progress(
+                    min(max(percentage / 100, 0), 1)
+                )
+
+                st.caption(
+                    f"{solved_count}/{total_count} questions solved"
+                )
+
+        else:
+            st.info("No topic data available yet.")
+
+        st.divider()
+
+        # Weak Topic Detection
+        st.subheader("Weak Topic Detection")
+
+        weakest_topic = data["weakest_topic"]
+
+        if weakest_topic:
+
+            weak_data = next(
+                (
+                    topic for topic in topics
+                    if topic["name"] == weakest_topic
+                ),
+                None
+            )
+
+            if weak_data:
+
+                st.warning(
+                    f"Your weakest topic is {weakest_topic}."
+                )
+
+                st.write(
+                    f"You have solved {weak_data['solved']} "
+                    f"out of {weak_data['total']} questions."
+                )
+
+                st.caption(
+                    "Practice more questions from this topic to improve."
+                )
+
+            else:
+                st.warning(
+                    f"Your weakest topic is {weakest_topic}."
+                )
+
+        else:
+            st.success("No weak topics detected!")
+
+        st.divider()
+
+        # Recommended Questions
+        st.subheader("Recommended Questions")
+
+        st.caption(
+            "Questions recommended based on your weaker topics."
+        )
+
+        recommendations = data["recommendations"]
+
+        if recommendations:
+
+            for qid in recommendations:
+
+                qid = int(qid)
+
+                if qid not in questions:
+                    continue
+
+                question = questions[qid]
+
+                st.write(
+                    f"**Q{qid}. {question['title']}**"
+                )
+
+                st.caption(
+                    f"Difficulty: {question['difficulty']} | "
+                    f"Topics: {', '.join(question_topics.get(qid, []))}"
+                )
+
+        else:
+            st.success(
+                "You have solved all available questions!"
+            )
 if "problem_tab" not in st.session_state:
     st.session_state.problem_tab = "description"
 if "submission_output" not in st.session_state:
@@ -1913,13 +3070,15 @@ if "page" not in st.session_state:
     st.session_state.page = "home"
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
-if "user_id" not in st.session_state:
-    st.session_state.user_id = None
 if "username" not in st.session_state:
     st.session_state.username = None
 if "solved_questions" not in st.session_state:
     st.session_state.solved_questions = set()
 active_page = st.session_state.page
+if "recovery_email" not in st.session_state:
+    st.session_state.recovery_email = ""
+if "recovery_username" not in st.session_state:
+    st.session_state.recovery_username = ""
 st.markdown(f"""
 <style>
 /* ACTIVE NAVBAR BUTTON */
@@ -1963,8 +3122,8 @@ with st.container(key="navbar"):
             st.rerun()
     with c7:
         st.write("")
-        if(st.button("🔍︎Debug",key='debug')):
-            st.session_state.page="debug"
+        if(st.button("🔍︎Bug Hunt",key='bug_hunt')):
+            st.session_state.page="bug_hunt"
             st.rerun()
 if st.session_state.page == "home":
     col1, col2, col3, col4 = st.columns([1, 8, 4, 1])
@@ -2008,7 +3167,7 @@ if st.session_state.page == "home":
 elif st.session_state.page=='problems':
     st.write(" ")
     st.write(" ")
-    co1,col2,col3=st.columns([0.5,6,0.5])
+    col1,col2,col3=st.columns([1,12,1])
     with col2:
         search_query = st.text_input(
     "🔍 Search Problems",
@@ -2045,7 +3204,6 @@ elif st.session_state.page=='problems':
                     with col5:
                         st.write("ㅤACTION")
                 with st.container(key="problem1_question"):
-    # Question 1
                     col1, col2, col3, col4,col5 = st.columns([1, 3,3, 3, 0.9])
                     with col1:
                             if 1 in st.session_state.solved_questions:
@@ -2069,8 +3227,7 @@ elif st.session_state.page=='problems':
                             st.session_state.problem_tab = "description"
                             st.session_state.page = "problem"
                             st.rerun()
-            
-    # Divider
+
                     st.markdown("""
         <div style="
             height: 1px;
@@ -3245,52 +4402,59 @@ elif st.session_state.page=='problems':
             margin: 0;
         "></div>
     """, unsafe_allow_html=True)                                                                                                                                                                                                                                                                                                             
-elif st.session_state.page=='history':
-    st.title("History Page")
-    if st.button("Back"):
-        st.session_state.page='home'
-        st.rerun()
+elif st.session_state.page == "history":
+    co1,col2,col3=st.columns([1,12,1])
+    with col2:
+        st.title("Submission History")
+        st.caption("Your previous coding submissions")
+
+        history = fetch_submission_history(
+        st.session_state.username
+    )
+        if not st.session_state.logged_in:
+            st.warning("Please login first to get history")
+        elif not history:
+            st.info("No submissions found.")
+
+        else:
+            st.success(f"Total submissions: {len(history)}")
+
+            for submission in history:
+
+                status = submission["status"]
+
+                if status == "ACCEPTED":
+                    status_label = "🟢 Accepted"
+                elif status == "COMPILATION ERROR":
+                    status_label = "🔴 Compilation Error"
+                else:
+                    status_label = "🔴 Not Accepted"
+
+                with st.expander(
+                f"Question {submission['question_id']} | "
+                f"{status_label} | "
+                f"#{submission['submission_id']}"
+                ):
+
+                    st.write(f"**Submission ID:** {submission['submission_id']}")
+                    st.write(f"**Question ID:** {submission['question_id']}")
+                    st.write(f"**Status:** {status_label}")
+                    st.write(f"**Date:** {submission['submitted_at']}")
+
+                    st.markdown("**Submitted Code**")
+
+                    st.code(
+                        submission["submitted_code"],
+                        language="cpp"
+                    )
+elif st.session_state.page == "bug_hunt":
+    co1,col2,col3=st.columns([1,12,1])
+    with col2:
+        show_bug_hunt()
 elif st.session_state.page=='progress':
-    st.title("Progress Page")
-    if st.button("Back"):
-        st.session_state.page='home'
-        st.rerun()
+    show_progress_page()
 elif st.session_state.page == "login":
     col1, col2, col3, col4 = st.columns([3, 2, 2.5, 0.5])
-    with col1:
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        if st.button("Back", key="login_back"):
-            st.session_state.page = "home"
-            st.rerun()
-
     with col2:
         with st.container(key="login_box"):
             st.header("ㅤㅤLOGIN")
@@ -3307,8 +4471,7 @@ elif st.session_state.page == "login":
             )
 
             st.write("")
-
-            if st.button("Login", key="login_submit"):
+            if st.button("Submit", key="login_submit"):
                 if not username.strip() or not password:
                     st.error("Please enter your username and password.")
 
@@ -3316,51 +4479,63 @@ elif st.session_state.page == "login":
                     try:
                         env = os.environ.copy()
                         env["PATH"] = (
-                            r"C:\Program Files\MySQL\MySQL Server 8.0\lib;"
-                            r"C:\msys64\ucrt64\bin;"
-                            + env.get("PATH", "")
-                        )
+                r"C:\Program Files\MySQL\MySQL Server 8.0\lib;"
+                r"C:\msys64\ucrt64\bin;"
+                + env.get("PATH", "")
+            )
 
                         result = subprocess.run(
-                            [LOGIN_PATH],
-                            input=f"{username.strip()}\n{password}\n",
-                            capture_output=True,
-                            text=True,
-                            timeout=10,
-                            cwd=BACKEND_PATH,
-                            env=env
-                        )
+                [LOGIN_PATH],
+                input=f"{username.strip()}\n{password}\n",
+                capture_output=True,
+                text=True,
+                timeout=10,
+                cwd=BACKEND_PATH,
+                env=env
+            )
 
                         output = result.stdout.strip()
                         error_output = result.stderr.strip()
-                        if result.returncode == 0 and output.startswith("HASH:"):
-                            password_hash = output[len("HASH:"):].strip()
 
-                            if bcrypt.checkpw(
-        password.encode("utf-8"),
-        password_hash.encode("utf-8")
-    ):
-                                st.session_state.logged_in = True
-                                st.session_state.username = username.strip()
-                                st.session_state.current_user = username.strip()
-                                st.session_state.page = "home"
-                                st.rerun()
-                            else:
-                                st.error("Invalid username or password.")
+                        if result.returncode != 0:
+                            st.error(
+                    f"Login backend error: {error_output or output or 'Unknown error'}"
+                )
 
                         elif output == "LOGIN_FAILED":
                             st.error("Invalid username or password.")
 
+                        elif output.startswith("HASH:"):
+                            password_hash = output[len("HASH:"):].strip()
+
+                            if not password_hash:
+                                st.error("Password hash was not returned.")
+
+                            elif bcrypt.checkpw(
+                    password.encode("utf-8"),
+                    password_hash.encode("utf-8")
+                ):
+                                st.session_state.logged_in = True
+                                st.session_state.username = username.strip()
+                                st.session_state.solved_questions = get_solved_questions(username)
+                                st.session_state.current_user = username.strip()
+                                st.session_state.page = "home"
+                                st.rerun()
+
+                            else:
+                                st.error("Invalid username or password.")
+
                         else:
-                            st.error("Unexpected response from login.cpp.")
+                            st.error(
+                    f"Unexpected login response: {output or error_output}"
+                )
 
                     except subprocess.TimeoutExpired:
                         st.error("Login timed out. Please try again.")
 
                     except Exception as e:
                         st.error(f"Login error: {e}")
-
-            st.write("")
+                        st.write("")
 
             if st.button(
                 "Forgot Username / Forgot Password",
@@ -3368,39 +4543,10 @@ elif st.session_state.page == "login":
             ):
                 st.session_state.page = "forgotuser"
                 st.rerun()
-    with col4:
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        if st.button("Signup", key="login_signup"):
-            st.session_state.page = "signup"
-            st.rerun()
+
+            if st.button("Signup", key="login_signup"):
+                st.session_state.page = "signup"
+                st.rerun()
 elif st.session_state.page == "signup":
     col1, col2, col3, col4 = st.columns([3, 2, 2.5, 0.5])
 
@@ -3490,6 +4636,10 @@ elif st.session_state.page == "signup":
                             if result.stderr.strip():
                                 st.code(result.stderr.strip())
                         else:
+                            st.write("LOGIN_PATH:", LOGIN_PATH)
+                            st.write("BACKEND_PATH:", BACKEND_PATH)
+                            st.write("EXE EXISTS:", os.path.exists(LOGIN_PATH))
+                            st.write("EXE TIME:", os.path.getmtime(LOGIN_PATH))
                             result = subprocess.run(
                                 [SIGNUP_PATH, "--check"],
                                 input=f"{email.strip()}\n{username.strip()}\n",
@@ -3824,8 +4974,8 @@ elif st.session_state.page == "problem":
                     st.session_state.page = "problems"
                     st.rerun()
 
-            if language == "C++":
-                text = st_ace(
+            
+            text = st_ace(
                     value=problem["starter_code"],
                     language="c_cpp",
                     theme="tomorrow_night",
@@ -3833,16 +4983,7 @@ elif st.session_state.page == "problem":
                     key=f"cpp_editor_{question_no}",
                     auto_update=True
                 )
-            else:
-                text = st_ace(
-                    value="# Write your Python code here",
-                    language="python",
-                    theme="tomorrow_night",
-                    height=450,
-                    key=f"python_editor_{question_no}",
-                    auto_update=True
-                )
-
+            
             with top1:
                 st.write("")
 
@@ -3869,76 +5010,79 @@ elif st.session_state.page == "problem":
                                 r"C:\Users\saksh\OneDrive\Documents"
                                 r"\CodePulse\Backend(C++)"
                             )
+
                             judge_path = os.path.join(
                                 backend_path, "judge.exe"
                             )
 
-                            try:
-                                result = subprocess.run(
-                                    [judge_path, str(question_no)],
-                                    input=text or "",
-                                    capture_output=True,
-                                    text=True,
-                                    cwd=backend_path,
-                                    timeout=60
-                                )
+                            if not st.session_state.logged_in:
+                                st.warning("Please login first to access the Judge.")
 
-                                output = (result.stdout or "").strip()
-                                error_output = (result.stderr or "").strip()
-
-                                if error_output:
-                                    st.code(error_output)
-
-                                if (
-                                    result.returncode == 0
-                                    and "ACCEPTED" in output
-                                    and "NOT ACCEPTED" not in output
-                                ):
-                                    st.session_state.solved_questions.add(
-                                        question_no
-                                    )
-                                    st.session_state.submission_output = (
-                                        "🟩 Problem Solved!\n\n" + output
-                                    )
-                                else:
-                                    details = (
-                                        output
-                                        if output
-                                        else "No output returned by judge."
+                            else:
+                                try:
+                                    result = subprocess.run(
+                                        [
+                                            judge_path,
+                                            str(question_no),
+                                            st.session_state.username
+                                        ],
+                                        input=text or "",
+                                        capture_output=True,
+                                        text=True,
+                                        cwd=backend_path,
+                                        timeout=60,
+                                        env=os.environ.copy()
                                     )
 
-                                    if "NOT ACCEPTED" in output:
-                                        st.session_state.submission_output = (
-                                            "🟥 Not Solved\n\n"
-                                            "Some test cases failed. "
-                                            "Check the details below:\n\n"
-                                            + details
+                                    output = (result.stdout or "").strip()
+                                    error_output = (result.stderr or "").strip()
+
+                                    if error_output:
+                                        st.code(error_output)
+
+                                    if (
+                                        result.returncode == 0
+                                        and "ACCEPTED" in output
+                                        and "NOT ACCEPTED" not in output
+                                    ):
+                                        st.session_state.solved_questions.add(
+                                            question_no
                                         )
+
+                                        st.session_state.submission_output = (
+                                            "🟩 Problem Solved!\n\n" + output
+                                        )
+
                                     else:
-                                        st.session_state.submission_output = (
-                                            "🟥 Execution Failed\n\n"
-                                            + details
+                                        details = (
+                                            output
+                                            if output
+                                            else "No output returned by judge."
                                         )
 
-                                st.session_state.problem_tab = "submitted"
-                                st.rerun()
+                                        if "NOT ACCEPTED" in output:
+                                            st.session_state.submission_output = (
+                                                "🟥 Not Solved\n\n"
+                                                "Some test cases failed. "
+                                                "Check the details below:\n\n"
+                                                + details
+                                            )
+                                        else:
+                                            st.session_state.submission_output = (
+                                                "🟥 Execution Failed\n\n"
+                                                + details
+                                            )
 
-                            except subprocess.TimeoutExpired as e:
-                                partial_output = e.stdout or ""
-                                partial_error = e.stderr or ""
+                                except subprocess.TimeoutExpired:
+                                    st.session_state.submission_output = (
+                                        "🟥 Execution Failed\n\n"
+                                        "Submission timed out."
+                                    )
 
-                                st.session_state.submission_output = (
-                                    "🟥 Timed out after 60 seconds.\n\n"
-                                    f"Partial output:\n{partial_output}\n\n"
-                                    f"Partial error:\n{partial_error}"
-                                )
-                                st.session_state.problem_tab = "submitted"
-                                st.rerun()
-
-                            except Exception as e:
-                                st.session_state.submission_output = (
-                                    f"🟥 Error: {e}"
-                                )
+                                except Exception as e:
+                                    st.session_state.submission_output = (
+                                        "🟥 Execution Failed\n\n" + str(e)
+                                    )
                                 st.session_state.problem_tab = "submitted"
                                 st.rerun()
 
@@ -3952,8 +5096,10 @@ elif st.session_state.page == "forgotuser":
         st.write("")
         st.write("")
         st.write("")
+
         with st.container(key="otp_box"):
             st.subheader("Forgot Password")
+
             email = st.text_input(
                 "Registered Email",
                 placeholder="Enter your email address",
@@ -3961,12 +5107,17 @@ elif st.session_state.page == "forgotuser":
             )
 
             if st.button("Continue", key="forgot_password_continue"):
-                if not email.strip():
+                email = email.strip()
+
+                if not email:
                     st.warning("Please enter your registered email.")
+
                 else:
                     try:
                         env = os.environ.copy()
                         env["DB_PASSWORD"] = st.secrets["DB_PASSWORD"]
+
+                        # Keep your existing MySQL and MSYS2 PATH setup here.
                         env["PATH"] = (
                             r"C:\Program Files\MySQL\MySQL Server 8.0\lib;"
                             r"C:\msys64\ucrt64\bin;"
@@ -3975,7 +5126,7 @@ elif st.session_state.page == "forgotuser":
 
                         result = subprocess.run(
                             [CHECK_EMAIL_PATH],
-                            input=email.strip() + "\n",
+                            input=email + "\n",
                             capture_output=True,
                             text=True,
                             timeout=10,
@@ -3984,63 +5135,70 @@ elif st.session_state.page == "forgotuser":
                         )
 
                         output = result.stdout.strip()
+                        lines = output.splitlines()
 
-                        if result.returncode == 0 and output == "EMAIL_FOUND":
-                            st.session_state.recovery_email = email.strip()
-                            st.session_state.pop("reset_otp", None)
-                            st.session_state.pop("reset_otp_sent", None)
-                            st.session_state.pop("reset_otp_verified", None)
-                            st.session_state.page = "forgot_password_otp"
-                            st.rerun()
+                        if result.returncode != 0:
+                            st.error("Could not check the registered email.")
+                            st.write("Backend error:", result.stderr.strip())
+                        
+                        elif "EMAIL_NOT_FOUND" in lines:
+                            st.error("No account found with this email.")
 
-                        elif result.returncode == 0 and output.startswith("USERNAME:"):
-                            st.error(
-        "Your recovery backend currently returns a username. "
-        "It needs to check whether the registered email exists."
-    )
-
-                        elif output == "EMAIL_NOT_FOUND":
-                            st.error("Email not found.")
+                        elif "EMAIL_CHECK_FAILED" in lines:
+                            st.error("Database email verification failed.")
 
                         else:
-                            st.error(f"Recovery backend failed. Return code: {result.returncode}")
-                            st.write("C++ output:", repr(output))
-                            st.write("C++ error:", result.stderr.strip() or "(empty)")
+                            # Extract username independently from email.
+                            recovered_username = None
+
+                            for line in lines:
+                                if line.startswith("USERNAME:"):
+                                    recovered_username = (
+                                        line.split(":", 1)[1].strip()
+                                    )
+                                    break
+
+                            if (
+                                "EMAIL_FOUND" in lines
+                                and recovered_username
+                            ):
+                                # Store email and username separately.
+                                st.session_state.recovery_email = email
+                                st.session_state.recovery_username = (
+                                    recovered_username
+                                )
+
+                                # Clear previous OTP verification state.
+                                st.session_state.pop("reset_otp", None)
+                                st.session_state.pop(
+                                    "reset_otp_sent", None
+                                )
+                                st.session_state.pop(
+                                    "reset_otp_verified", None
+                                )
+
+                                st.session_state.page = (
+                                    "forgot_password_otp"
+                                )
+                                st.rerun()
+
+                            else:
+                                st.error(
+                                    "The backend did not return both "
+                                    "EMAIL_FOUND and USERNAME:<username>. "
+                                    "Please check your C++ backend output."
+                                )
+
                     except subprocess.TimeoutExpired:
                         st.error("Recovery request timed out.")
+
                     except Exception as e:
                         st.error(f"Recovery error: {e}")
 
     with col1:
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
-        st.write(" ")
+        for _ in range(28):
+            st.write("")
+
         if st.button("Back", key="forgot_password_back"):
             st.session_state.page = "login"
             st.rerun()
@@ -4098,30 +5256,40 @@ elif st.session_state.page == "forgot_password_otp":
                     key="reset_otp_input"
                 )
 
+                
                 if st.button("Verify OTP", key="reset_verify_otp"):
                     if otp_input.strip() == st.session_state.reset_otp:
-                        st.session_state.logged_in = True
-                        st.session_state.current_user = (
-                            st.session_state.get("recovery_email", "")
-                        )
-                        st.session_state.username = (
-                            st.session_state.get("recovery_email", "")
-                        )
-                        st.session_state.page = "home"
 
-                        for key in (
-                            "reset_otp",
-                            "reset_otp_sent",
-                            "reset_otp_verified",
-                            "recovery_email",
-                        ):
-                            st.session_state.pop(key, None)
+                        recovered_username = st.session_state.get(
+            "recovery_username", ""
+        )
+                        recovery_email = st.session_state.get(
+            "recovery_email", ""
+        )
 
-                        st.success("OTP verified! Login successful.")
-                        st.rerun()
+                        if not recovered_username:
+                            st.error(
+                "Username not found. Please restart account recovery."
+            )
+
+                        else:
+                            st.session_state.username = recovered_username
+                            st.session_state.current_user = recovered_username
+                    
+                            st.session_state.reset_otp_verified = True
+                            st.session_state.pop("reset_otp", None)
+                            st.session_state.pop("reset_otp_sent", None)
+                            st.session_state.logged_in = True
+                            st.session_state.page = "home"
+
+                            st.success(
+                f"OTP verified for username: {recovered_username}"
+            )
+                            st.rerun()
 
                     else:
                         st.error("Incorrect OTP. Please try again.")
+
     with col1:
         st.write(" ")
         st.write(" ")
@@ -4155,5 +5323,3 @@ elif st.session_state.page == "forgot_password_otp":
         if st.button("Back"):
             st.session_state.page = "forgotuser"
             st.rerun()
-
-
